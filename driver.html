@@ -795,6 +795,49 @@
       const driverDocPreview = document.getElementById("driverDocPreview");
       const saveDriverProfileButton = document.getElementById("saveDriverProfileButton");
 
+      const DRIVER_MEDIA_FIELDS = {
+        avatar: [
+          "avatarUrl",
+          "profilePicUrl",
+          "driverPhotoUrl",
+          "driverAvatarUrl",
+          "photoUrl",
+          "photoURL",
+          "profilePhotoUrl"
+        ],
+        license: [
+          "licenseImageUrl",
+          "licensePhotoUrl",
+          "driverLicenseImageUrl",
+          "driverLicensePhotoUrl",
+          "driverLicenseUrl",
+          "licenseUrl"
+        ],
+        vehicle: [
+          "carImageUrl",
+          "vehiclePhotoUrl",
+          "vehicleImageUrl",
+          "driverVehiclePhotoUrl",
+          "driverCarImageUrl",
+          "vehiclePhoto",
+          "vehiclePicUrl"
+        ]
+      };
+
+      function getFirstProfileValue(profile, fieldList = []) {
+        if (!profile || !Array.isArray(fieldList)) return null;
+        for (const field of fieldList) {
+          const raw = profile[field];
+          if (typeof raw === "string") {
+            const normalized = raw.trim();
+            if (normalized) {
+              return normalized;
+            }
+          }
+        }
+        return null;
+      }
+
     const activeRideOverlay = document.getElementById("activeRideOverlay");
     const activeRideTitle = document.getElementById("activeRideTitle");
     const activeRideTag = document.getElementById("activeRideTag");
@@ -873,9 +916,9 @@
       function renderDriverDocPreview(profile) {
         if (!driverDocPreview) return;
         const docs = [];
-        const avatar = profile?.avatarUrl || profile?.profilePicUrl;
-        const license = profile?.licenseImageUrl || profile?.licensePhotoUrl;
-        const vehicle = profile?.carImageUrl || profile?.vehiclePhotoUrl;
+        const avatar = getFirstProfileValue(profile, DRIVER_MEDIA_FIELDS.avatar);
+        const license = getFirstProfileValue(profile, DRIVER_MEDIA_FIELDS.license);
+        const vehicle = getFirstProfileValue(profile, DRIVER_MEDIA_FIELDS.vehicle);
         if (avatar) docs.push({ label: "Avatar", url: avatar });
         if (license) docs.push({ label: "License", url: license });
         if (vehicle) docs.push({ label: "Vehicle", url: vehicle });
@@ -1128,7 +1171,10 @@
             .filter((part) => !!part && part.trim());
           driverDetailEl.textContent = detailParts.join(" • ");
 
-            updateDriverAvatar(displayName, currentDriverProfile.avatarUrl || currentDriverProfile.profilePicUrl);
+            updateDriverAvatar(
+              displayName,
+              getFirstProfileValue(currentDriverProfile, DRIVER_MEDIA_FIELDS.avatar)
+            );
 
           populateDriverForm(currentDriverProfile);
           renderDriverBadges(currentDriverProfile);
@@ -1476,9 +1522,9 @@
           currentDriverProfile = { ...currentDriverProfile, ...driverSnap.data() };
         }
 
-        const avatarUrl = currentDriverProfile?.avatarUrl || currentDriverProfile?.profilePicUrl || null;
-        const licenseImageUrl = currentDriverProfile?.licenseImageUrl || currentDriverProfile?.licensePhotoUrl || null;
-        const carImageUrl = currentDriverProfile?.carImageUrl || currentDriverProfile?.vehiclePhotoUrl || null;
+        const avatarUrl = getFirstProfileValue(currentDriverProfile, DRIVER_MEDIA_FIELDS.avatar);
+        const licenseImageUrl = getFirstProfileValue(currentDriverProfile, DRIVER_MEDIA_FIELDS.license);
+        const carImageUrl = getFirstProfileValue(currentDriverProfile, DRIVER_MEDIA_FIELDS.vehicle);
 
         const driverInfo = {
           driverId: currentUser.uid,
