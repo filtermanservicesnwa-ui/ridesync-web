@@ -199,6 +199,60 @@
     .rider-header-text { flex: 1 1 auto; min-width: 0; }
     .rider-name { font-size: 1rem; font-weight: 600; }
     .rider-contact { font-size: 0.8rem; color: #9ca3af; }
+      .driver-identity-card {
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,0.4);
+        background: rgba(2,6,23,0.6);
+        padding: 10px;
+        margin: 8px 0;
+      }
+      .driver-identity-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .driver-identity-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #e5e7eb;
+        background: #020617;
+        overflow: hidden;
+      }
+      .verification-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .verification-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.6);
+        font-size: 0.7rem;
+        color: #e5e7eb;
+      }
+      .driver-docs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .driver-docs img {
+        width: 70px;
+        height: 70px;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.5);
+        object-fit: cover;
+      }
 
     .top-right {
       position: fixed;
@@ -566,6 +620,18 @@
         <div id="riderOverlayInfo"></div>
         <div id="riderOverlayStatus"></div>
 
+          <div id="driverIdentityCard" class="driver-identity-card" style="display:none;">
+            <div class="driver-identity-row">
+              <div id="driverIdentityAvatar" class="driver-identity-avatar">DR</div>
+              <div>
+                <div class="rider-name" id="driverIdentityName"></div>
+                <div class="rider-contact" id="driverIdentityPhone"></div>
+              </div>
+            </div>
+            <div id="driverIdentityBadges" class="verification-row" style="display:none;"></div>
+            <div id="driverIdentityDocs" class="driver-docs" style="display:none;"></div>
+          </div>
+
         <button id="contactDriverBtn" class="overlay-close" style="margin-top:8px;">
           Contact driver
         </button>
@@ -757,6 +823,12 @@
     const riderOverlayInfo = document.getElementById("riderOverlayInfo");
     const riderOverlayStatus = document.getElementById("riderOverlayStatus");
     const riderOverlayError = document.getElementById("riderOverlayError");
+      const driverIdentityCard = document.getElementById("driverIdentityCard");
+      const driverIdentityAvatar = document.getElementById("driverIdentityAvatar");
+      const driverIdentityName = document.getElementById("driverIdentityName");
+      const driverIdentityPhone = document.getElementById("driverIdentityPhone");
+      const driverIdentityBadges = document.getElementById("driverIdentityBadges");
+      const driverIdentityDocs = document.getElementById("driverIdentityDocs");
     const closeRiderOverlayButton = document.getElementById("closeRiderOverlayButton");
 
     const riderMiniBar = document.getElementById("riderMiniBar");
@@ -829,15 +901,40 @@
         updateSyncButtonLabel();
       }
 
+        function resetRideForm() {
+          destinationEl.value = "";
+          destinationLatLng = null;
+          lastDestinationPlace = null;
+          lastDestinationIsFayetteville = false;
+          lastRideMetrics = null;
+          if (destMarker) {
+            destMarker.setVisible(false);
+          }
+          if (directionsRenderer) {
+            directionsRenderer.set("directions", null);
+          }
+          fareReady.style.display = "none";
+          fareNotReady.style.display = "block";
+          fareTime.textContent = "";
+          fareDistance.textContent = "";
+          fareMembership.textContent = "";
+          fareTotal.textContent = "";
+        }
+
       function returnToHomeAfterRide(message = "", isError = false) {
         if (riderOverlay) riderOverlay.classList.remove("active");
         if (riderMiniBar) riderMiniBar.classList.remove("active");
         if (rideSummary) rideSummary.style.display = "none";
         showRideView();
+          rideSummaryText.innerHTML = "";
+          rideView.style.display = "block";
+          loadingView.style.display = "none";
         clearPoolGroupUI();
         resetJoinModeUi();
         hideGroupQr();
+          renderDriverIdentity(null);
         if (cancelError) cancelError.textContent = "";
+          resetRideForm();
 
         if (isError) {
           profileError.textContent = message || "";
@@ -848,21 +945,30 @@
         }
       }
 
-    function showAuthView() {
-      authView.classList.add("active");
-      rideView.classList.remove("active");
-      loadingView.classList.remove("active");
-    }
-    function showRideView() {
-      authView.classList.remove("active");
-      rideView.classList.add("active");
-      loadingView.classList.remove("active");
-    }
-    function showLoadingView() {
-      authView.classList.remove("active");
-      rideView.classList.remove("active");
-      loadingView.classList.add("active");
-    }
+      function showAuthView() {
+        authView.classList.add("active");
+        rideView.classList.remove("active");
+        loadingView.classList.remove("active");
+        authView.style.display = "block";
+        rideView.style.display = "none";
+        loadingView.style.display = "none";
+      }
+      function showRideView() {
+        authView.classList.remove("active");
+        rideView.classList.add("active");
+        loadingView.classList.remove("active");
+        authView.style.display = "none";
+        rideView.style.display = "block";
+        loadingView.style.display = "none";
+      }
+      function showLoadingView() {
+        authView.classList.remove("active");
+        rideView.classList.remove("active");
+        loadingView.classList.add("active");
+        authView.style.display = "none";
+        rideView.style.display = "none";
+        loadingView.style.display = "block";
+      }
 
     function setMembershipBadge(profile) {
       const plan = profile?.membershipType || profile?.membership || "basic";
@@ -1573,6 +1679,96 @@
         return `Estimated trip: about ${Math.round(estMinutes)} min.`;
       }
 
+      function renderDriverIdentity(data) {
+        if (!driverIdentityCard) return;
+        const hasDriver =
+          !!(data?.driverName || data?.driverFirstName || data?.driverLastName || data?.driverEmail);
+        if (!hasDriver) {
+          driverIdentityCard.style.display = "none";
+          if (driverIdentityBadges) {
+            driverIdentityBadges.innerHTML = "";
+            driverIdentityBadges.style.display = "none";
+          }
+          if (driverIdentityDocs) {
+            driverIdentityDocs.innerHTML = "";
+            driverIdentityDocs.style.display = "none";
+          }
+          if (driverIdentityAvatar) {
+            driverIdentityAvatar.style.backgroundImage = "";
+            driverIdentityAvatar.textContent = "DR";
+          }
+          if (driverIdentityName) driverIdentityName.textContent = "";
+          if (driverIdentityPhone) driverIdentityPhone.textContent = "";
+          return;
+        }
+
+        const displayName =
+          data.driverName ||
+          [data.driverFirstName, data.driverLastName].filter(Boolean).join(" ").trim() ||
+          "Driver";
+        const phone = data.driverPhone || data.driverEmail || "";
+
+        if (driverIdentityName) driverIdentityName.textContent = displayName;
+        if (driverIdentityPhone) driverIdentityPhone.textContent = phone;
+
+        if (driverIdentityAvatar) {
+          const avatarUrl = data.driverAvatarUrl || data.driverPhotoUrl || null;
+          driverIdentityAvatar.style.backgroundImage = "";
+          driverIdentityAvatar.textContent = "";
+          if (avatarUrl) {
+            const safeAvatarUrl = encodeURI(avatarUrl);
+            driverIdentityAvatar.style.backgroundImage = `url(${safeAvatarUrl})`;
+            driverIdentityAvatar.style.backgroundSize = "cover";
+            driverIdentityAvatar.style.backgroundPosition = "center";
+          } else {
+            const initials = displayName
+              .split(" ")
+              .map((s) => s[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase();
+            driverIdentityAvatar.textContent = initials || "DR";
+          }
+        }
+
+        if (driverIdentityBadges) {
+          const badges = [];
+          if (data.driverVerified) badges.push("Verified ID");
+          if (data.driverDrugTestCleared) badges.push("Drug test cleared");
+          if (data.driverBackgroundCheckCleared) badges.push("Background check cleared");
+          if (badges.length) {
+            driverIdentityBadges.innerHTML = badges
+              .map((label) => `<span class="verification-pill">✔ ${label}</span>`)
+              .join("");
+            driverIdentityBadges.style.display = "flex";
+          } else {
+            driverIdentityBadges.innerHTML = "";
+            driverIdentityBadges.style.display = "none";
+          }
+        }
+
+        if (driverIdentityDocs) {
+          const docs = [];
+          if (data.driverLicensePhotoUrl) docs.push({ label: "License", url: data.driverLicensePhotoUrl });
+          if (data.driverVehiclePhotoUrl) docs.push({ label: "Vehicle", url: data.driverVehiclePhotoUrl });
+          const withUrls = docs.filter((doc) => !!doc.url);
+          if (withUrls.length) {
+            driverIdentityDocs.innerHTML = withUrls
+              .map((doc) => {
+                const safeUrl = encodeURI(doc.url);
+                return `<a href="${safeUrl}" target="_blank" rel="noopener" title="${doc.label}"><img src="${safeUrl}" alt="${doc.label}" /></a>`;
+              })
+              .join("");
+            driverIdentityDocs.style.display = "flex";
+          } else {
+            driverIdentityDocs.innerHTML = "";
+            driverIdentityDocs.style.display = "none";
+          }
+        }
+
+        driverIdentityCard.style.display = "block";
+      }
+
       function updateRiderOverlay(rideId, data) {
         if (!riderOverlay) return;
         latestRideForOverlay = { rideId, data };
@@ -1610,6 +1806,7 @@
         const tripEstimate = formatTripEstimate(data);
         const combinedStatus = [friendlyStatus, tripEstimate].filter(Boolean).join(" ").trim();
         riderOverlayStatus.textContent = combinedStatus;
+          renderDriverIdentity(data);
 
         riderOverlayError.textContent = "";
 
@@ -1712,10 +1909,12 @@
         } else if (status === "completed") {
           // Done → show summary screen
           showRideSummary(data);
+            renderDriverIdentity(null);
         } else {
           // Any other status → hide overlay + mini bar
           if (riderOverlay) riderOverlay.classList.remove("active");
           if (riderMiniBar) riderMiniBar.classList.remove("active");
+            renderDriverIdentity(null);
         }
       });
     }

@@ -88,6 +88,64 @@
     .error { color: #fecaca; font-size: 0.8rem; min-height: 18px; margin-top: 2px; }
     .success { color: #bbf7d0; font-size: 0.8rem; min-height: 18px; margin-top: 2px; }
     .small { font-size: 0.75rem; color: #9ca3af; margin-top: 4px; }
+      .profile-form {
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,0.4);
+        background: rgba(2,6,23,0.5);
+        padding: 10px;
+        margin-top: 6px;
+      }
+      .profile-form h3 {
+        margin: 0 0 6px;
+        font-size: 0.95rem;
+        text-align: left;
+      }
+      .verification-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .verification-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.6);
+        font-size: 0.7rem;
+        color: #e5e7eb;
+      }
+      .doc-thumb-preview {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+      .doc-thumb-preview img {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.5);
+      }
+      .checkbox-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin: 6px 0 4px;
+      }
+      .checkbox-row label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: #e5e7eb;
+      }
+      .checkbox-row input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+      }
 
     #authView, #driverView { display: none; }
     #authView.active, #driverView.active { display: block; }
@@ -258,12 +316,95 @@
         </div>
         <button id="logoutButton" class="btn-secondary btn-small">Log out</button>
       </div>
+        <div id="driverVerificationBadges" class="verification-row" style="display:none;"></div>
 
       <button id="toggleOnlineButton" class="btn-primary" style="width:100%;margin-bottom:4px;">
         Sync online
       </button>
       <div id="driverMessage" class="success"></div>
       <div id="driverError" class="error"></div>
+
+        <button id="editDriverProfileButton"
+                class="btn-secondary btn-small"
+                style="width:100%; margin:6px 0 4px;">
+          Edit profile
+        </button>
+        <div id="driverProfileMessage" class="success"></div>
+        <div id="driverProfileError" class="error"></div>
+
+        <div id="driverProfileForm" class="profile-form" style="display:none;">
+          <h3>Driver profile</h3>
+          <div class="row">
+            <div>
+              <label for="driverFirstName">First name</label>
+              <input id="driverFirstName" type="text" />
+            </div>
+            <div>
+              <label for="driverLastName">Last name</label>
+              <input id="driverLastName" type="text" />
+            </div>
+          </div>
+          <label for="driverPhone">Phone</label>
+          <input id="driverPhone" type="tel" />
+
+          <div class="row">
+            <div>
+              <label for="vehicleYear">Vehicle year</label>
+              <input id="vehicleYear" type="text" />
+            </div>
+            <div>
+              <label for="vehicleMake">Vehicle make</label>
+              <input id="vehicleMake" type="text" />
+            </div>
+            <div>
+              <label for="vehicleModel">Vehicle model</label>
+              <input id="vehicleModel" type="text" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="vehicleColor">Vehicle color</label>
+              <input id="vehicleColor" type="text" />
+            </div>
+            <div>
+              <label for="licensePlate">License plate</label>
+              <input id="licensePlate" type="text" />
+            </div>
+          </div>
+
+          <label for="driverAvatarInput">Profile photo</label>
+          <input id="driverAvatarInput" type="file" accept="image/*" />
+
+          <label for="driverLicenseInput">License photo</label>
+          <input id="driverLicenseInput" type="file" accept="image/*" />
+
+          <label for="driverVehicleInput">Vehicle photo</label>
+          <input id="driverVehicleInput" type="file" accept="image/*" />
+
+          <div class="checkbox-row">
+            <label>
+              <input id="driverVerified" type="checkbox" />
+              Verified ID
+            </label>
+            <label>
+              <input id="driverDrugTest" type="checkbox" />
+              Drug test cleared
+            </label>
+            <label>
+              <input id="driverBackground" type="checkbox" />
+              Background check cleared
+            </label>
+          </div>
+
+          <div id="driverDocPreview" class="doc-thumb-preview"></div>
+
+          <button id="saveDriverProfileButton"
+                  type="button"
+                  class="btn-primary btn-small"
+                  style="margin-top:6px;">
+            Save profile
+          </button>
+        </div>
 
       <div class="section-title">Your map</div>
       <div id="map"></div>
@@ -350,10 +491,16 @@
       orderBy,
       limit,
       where,
-      getDocs,
-      serverTimestamp,
-      writeBatch
-    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+        getDocs,
+        serverTimestamp,
+        writeBatch
+      } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+      import {
+        getStorage,
+        ref,
+        uploadBytes,
+        getDownloadURL
+      } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyA4BPyi7sDZtcsOZM-FDzl2DQ61wUTcejo",
@@ -365,9 +512,10 @@
       measurementId: "G-K3ZD4YWSZZ"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const storage = getStorage(app);
 
     const authView = document.getElementById("authView");
     const driverView = document.getElementById("driverView");
@@ -385,7 +533,28 @@
     const toggleOnlineButton = document.getElementById("toggleOnlineButton");
     const driverMessage = document.getElementById("driverMessage");
     const driverError = document.getElementById("driverError");
-    const ridesList = document.getElementById("ridesList");
+      const ridesList = document.getElementById("ridesList");
+      const driverVerificationBadges = document.getElementById("driverVerificationBadges");
+      const editDriverProfileButton = document.getElementById("editDriverProfileButton");
+      const driverProfileForm = document.getElementById("driverProfileForm");
+      const driverProfileMessage = document.getElementById("driverProfileMessage");
+      const driverProfileError = document.getElementById("driverProfileError");
+      const driverFirstNameInput = document.getElementById("driverFirstName");
+      const driverLastNameInput = document.getElementById("driverLastName");
+      const driverPhoneInput = document.getElementById("driverPhone");
+      const vehicleYearInput = document.getElementById("vehicleYear");
+      const vehicleMakeInput = document.getElementById("vehicleMake");
+      const vehicleModelInput = document.getElementById("vehicleModel");
+      const vehicleColorInput = document.getElementById("vehicleColor");
+      const licensePlateInput = document.getElementById("licensePlate");
+      const driverAvatarInput = document.getElementById("driverAvatarInput");
+      const driverLicenseInput = document.getElementById("driverLicenseInput");
+      const driverVehicleInput = document.getElementById("driverVehicleInput");
+      const driverVerifiedInput = document.getElementById("driverVerified");
+      const driverDrugTestInput = document.getElementById("driverDrugTest");
+      const driverBackgroundInput = document.getElementById("driverBackground");
+      const driverDocPreview = document.getElementById("driverDocPreview");
+      const saveDriverProfileButton = document.getElementById("saveDriverProfileButton");
 
     const activeRideOverlay = document.getElementById("activeRideOverlay");
     const activeRideTitle = document.getElementById("activeRideTitle");
@@ -417,7 +586,136 @@
     let boardingQr = null;
     let dropoffQr = null;
 
-    function showAuth() {
+      function getDriverDisplayName(profile, fallbackEmail = "") {
+        if (!profile) return fallbackEmail || "Driver";
+        const first = (profile.firstName || "").trim();
+        const last = (profile.lastName || "").trim();
+        const combined = [first, last].filter(Boolean).join(" ").trim();
+        if (combined) return combined;
+        if (profile.fullName) return profile.fullName;
+        return fallbackEmail || "Driver";
+      }
+
+      function renderDriverBadges(profile) {
+        if (!driverVerificationBadges) return;
+        const badges = [];
+        if (profile?.isVerified) badges.push("Verified ID");
+        if (profile?.passedDrugTest) badges.push("Drug test cleared");
+        if (profile?.passedBackgroundCheck) badges.push("Background check cleared");
+        if (!badges.length) {
+          driverVerificationBadges.style.display = "none";
+          driverVerificationBadges.innerHTML = "";
+          return;
+        }
+        driverVerificationBadges.style.display = "flex";
+        driverVerificationBadges.innerHTML = badges
+          .map((label) => `<span class="verification-pill">✔ ${label}</span>`)
+          .join("");
+      }
+
+      function renderDriverDocPreview(profile) {
+        if (!driverDocPreview) return;
+        const docs = [];
+        if (profile?.profilePicUrl) docs.push({ label: "Avatar", url: profile.profilePicUrl });
+        if (profile?.licensePhotoUrl) docs.push({ label: "License", url: profile.licensePhotoUrl });
+        if (profile?.vehiclePhotoUrl) docs.push({ label: "Vehicle", url: profile.vehiclePhotoUrl });
+        if (!docs.length) {
+          driverDocPreview.innerHTML = '<div class="small">No documents uploaded yet.</div>';
+          return;
+        }
+        driverDocPreview.innerHTML = docs
+          .map(
+            (doc) =>
+              `<a href="${doc.url}" target="_blank" rel="noopener"><img src="${doc.url}" alt="${doc.label}" title="${doc.label}"/></a>`
+          )
+          .join("");
+      }
+
+      function populateDriverForm(profile) {
+        if (!profile) return;
+        if (driverFirstNameInput) driverFirstNameInput.value = profile.firstName || "";
+        if (driverLastNameInput) driverLastNameInput.value = profile.lastName || "";
+        if (driverPhoneInput) driverPhoneInput.value = profile.phone || "";
+        if (vehicleYearInput) vehicleYearInput.value = profile.vehicleYear || "";
+        if (vehicleMakeInput) vehicleMakeInput.value = profile.vehicleMake || "";
+        if (vehicleModelInput) vehicleModelInput.value = profile.vehicleModel || "";
+        if (vehicleColorInput) vehicleColorInput.value = profile.vehicleColor || "";
+        if (licensePlateInput) licensePlateInput.value = profile.licensePlate || "";
+        if (driverVerifiedInput) driverVerifiedInput.checked = !!profile.isVerified;
+        if (driverDrugTestInput) driverDrugTestInput.checked = !!profile.passedDrugTest;
+        if (driverBackgroundInput) driverBackgroundInput.checked = !!profile.passedBackgroundCheck;
+      }
+
+      async function uploadDriverFile(inputEl, path) {
+        if (!inputEl || !inputEl.files || !inputEl.files[0]) return null;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, inputEl.files[0]);
+        return await getDownloadURL(storageRef);
+      }
+
+      async function saveDriverProfile() {
+        if (!currentUser) {
+          if (driverProfileError) driverProfileError.textContent = "Log in to update your profile.";
+          return;
+        }
+        if (driverProfileError) driverProfileError.textContent = "";
+        if (driverProfileMessage) driverProfileMessage.textContent = "";
+
+        const firstName = (driverFirstNameInput?.value || "").trim();
+        const lastName = (driverLastNameInput?.value || "").trim();
+        const phone = (driverPhoneInput?.value || "").trim();
+        const vehicleYear = (vehicleYearInput?.value || "").trim();
+        const vehicleMake = (vehicleMakeInput?.value || "").trim();
+        const vehicleModel = (vehicleModelInput?.value || "").trim();
+        const vehicleColor = (vehicleColorInput?.value || "").trim();
+        const licensePlate = (licensePlateInput?.value || "").trim();
+        const isVerified = !!driverVerifiedInput?.checked;
+        const passedDrugTest = !!driverDrugTestInput?.checked;
+        const passedBackgroundCheck = !!driverBackgroundInput?.checked;
+
+        const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+        const updates = {
+          firstName,
+          lastName,
+          fullName: fullName || currentDriverProfile?.fullName || currentUser.email || "Driver",
+          phone,
+          vehicleYear,
+          vehicleMake,
+          vehicleModel,
+          vehicleColor,
+          licensePlate,
+          isVerified,
+          passedDrugTest,
+          passedBackgroundCheck,
+          updatedAt: serverTimestamp()
+        };
+
+        try {
+          const avatarUrl = await uploadDriverFile(driverAvatarInput, `drivers/${currentUser.uid}/avatar.jpg`);
+          const licenseUrl = await uploadDriverFile(driverLicenseInput, `drivers/${currentUser.uid}/license.jpg`);
+          const vehicleUrl = await uploadDriverFile(driverVehicleInput, `drivers/${currentUser.uid}/vehicle.jpg`);
+
+          if (avatarUrl) updates.profilePicUrl = avatarUrl;
+          if (licenseUrl) updates.licensePhotoUrl = licenseUrl;
+          if (vehicleUrl) updates.vehiclePhotoUrl = vehicleUrl;
+
+          await setDoc(doc(db, "drivers", currentUser.uid), updates, { merge: true });
+          await loadDriverProfile();
+
+          if (driverProfileMessage) driverProfileMessage.textContent = "Profile updated.";
+          if (driverProfileForm) driverProfileForm.style.display = "none";
+
+          if (driverAvatarInput) driverAvatarInput.value = "";
+          if (driverLicenseInput) driverLicenseInput.value = "";
+          if (driverVehicleInput) driverVehicleInput.value = "";
+        } catch (err) {
+          console.error("saveDriverProfile error", err);
+          if (driverProfileError) driverProfileError.textContent = err.message || "Could not save profile.";
+        }
+      }
+
+      function showAuth() {
       authView.classList.add("active");
       driverView.classList.remove("active");
     }
@@ -456,6 +754,14 @@
         driverAvatar.textContent = "DR";
         driverNameEl.textContent = "Driver";
         driverDetailEl.textContent = "";
+          if (driverVerificationBadges) {
+            driverVerificationBadges.innerHTML = "";
+            driverVerificationBadges.style.display = "none";
+          }
+          if (driverProfileForm) driverProfileForm.style.display = "none";
+          if (driverProfileMessage) driverProfileMessage.textContent = "";
+          if (driverProfileError) driverProfileError.textContent = "";
+          if (driverDocPreview) driverDocPreview.innerHTML = "";
         if (ridesUnsub) {
           ridesUnsub();
           ridesUnsub = null;
@@ -470,46 +776,78 @@
       subscribeToRides();
     });
 
-    async function loadDriverProfile() {
-      try {
-        const ref = doc(db, "drivers", currentUser.uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          currentDriverProfile = snap.data();
-        } else {
-          currentDriverProfile = {
-            fullName: currentUser.email || "Driver",
-            phone: "",
-            vehicleMake: "",
-            vehicleModel: "",
-            vehicleColor: "",
-            licensePlate: ""
-          };
-          await setDoc(ref, {
-            ...currentDriverProfile,
-            createdAt: serverTimestamp()
-          }, { merge: true });
-        }
+      async function loadDriverProfile() {
+        if (!currentUser) return;
+        try {
+          const ref = doc(db, "drivers", currentUser.uid);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            currentDriverProfile = snap.data();
+          } else {
+            currentDriverProfile = {
+              firstName: "",
+              lastName: "",
+              fullName: currentUser.email || "Driver",
+              phone: "",
+              vehicleYear: "",
+              vehicleMake: "",
+              vehicleModel: "",
+              vehicleColor: "",
+              licensePlate: "",
+              isVerified: false,
+              passedDrugTest: false,
+              passedBackgroundCheck: false
+            };
+            await setDoc(
+              ref,
+              {
+                ...currentDriverProfile,
+                createdAt: serverTimestamp()
+              },
+              { merge: true }
+            );
+          }
 
-        const name = currentDriverProfile.fullName || currentUser.email || "Driver";
-        driverNameEl.textContent = name;
-        driverDetailEl.textContent =
-          `${currentDriverProfile.vehicleYear || ""} ${currentDriverProfile.vehicleColor || ""} ${currentDriverProfile.vehicleMake || ""} ${currentDriverProfile.vehicleModel || ""}`.trim();
+          const displayName = getDriverDisplayName(currentDriverProfile, currentUser.email);
+          driverNameEl.textContent = displayName;
 
-        if (currentDriverProfile.profilePicUrl) {
-          const img = new Image();
-          img.src = currentDriverProfile.profilePicUrl;
-          img.onload = () => {
-            driverAvatar.innerHTML = "";
-            driverAvatar.appendChild(img);
-          };
-        } else {
-          driverAvatar.textContent = name.charAt(0).toUpperCase();
+          const carParts = [
+            currentDriverProfile.vehicleYear,
+            currentDriverProfile.vehicleColor,
+            currentDriverProfile.vehicleMake,
+            currentDriverProfile.vehicleModel
+          ]
+            .filter((part) => !!part)
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+          const detailParts = [carParts, currentDriverProfile.licensePlate, currentDriverProfile.phone]
+            .filter((part) => !!part && part.trim());
+          driverDetailEl.textContent = detailParts.join(" • ");
+
+          driverAvatar.innerHTML = "";
+          if (currentDriverProfile.profilePicUrl) {
+            const img = new Image();
+            img.src = currentDriverProfile.profilePicUrl;
+            img.alt = displayName;
+            img.onload = () => {
+              driverAvatar.innerHTML = "";
+              driverAvatar.appendChild(img);
+            };
+            img.onerror = () => {
+              driverAvatar.textContent = displayName.charAt(0).toUpperCase();
+            };
+          } else {
+            driverAvatar.textContent = displayName.charAt(0).toUpperCase();
+          }
+
+          populateDriverForm(currentDriverProfile);
+          renderDriverBadges(currentDriverProfile);
+          renderDriverDocPreview(currentDriverProfile);
+        } catch (err) {
+          console.error("loadDriverProfile error", err);
         }
-      } catch (err) {
-        console.error("loadDriverProfile error", err);
       }
-    }
 
     function initMap() {
       if (map) return;
@@ -548,6 +886,21 @@
         toggleOnlineButton.textContent = "Sync online";
       }
     }
+
+      if (editDriverProfileButton) {
+        editDriverProfileButton.addEventListener("click", () => {
+          if (!driverProfileForm) return;
+          const isHidden =
+            driverProfileForm.style.display === "none" || !driverProfileForm.style.display;
+          driverProfileForm.style.display = isHidden ? "block" : "none";
+        });
+      }
+
+      if (saveDriverProfileButton) {
+        saveDriverProfileButton.addEventListener("click", () => {
+          saveDriverProfile();
+        });
+      }
 
     toggleOnlineButton.addEventListener("click", async () => {
       setOnline(!isOnline);
@@ -740,8 +1093,20 @@
         const driverInfo = {
           driverId: currentUser.uid,
           driverEmail: currentUser.email || "",
-          driverName: currentDriverProfile?.fullName || currentUser.email || "Driver",
-          driverPhotoUrl: currentDriverProfile?.profilePicUrl || null,
+            driverName:
+              getDriverDisplayName(currentDriverProfile, currentUser.email) ||
+              currentUser.email ||
+              "Driver",
+            driverFirstName: currentDriverProfile?.firstName || "",
+            driverLastName: currentDriverProfile?.lastName || "",
+            driverPhone: currentDriverProfile?.phone || "",
+            driverPhotoUrl: currentDriverProfile?.profilePicUrl || null,
+            driverAvatarUrl: currentDriverProfile?.profilePicUrl || null,
+            driverLicensePhotoUrl: currentDriverProfile?.licensePhotoUrl || null,
+            driverVehiclePhotoUrl: currentDriverProfile?.vehiclePhotoUrl || null,
+            driverVerified: !!currentDriverProfile?.isVerified,
+            driverDrugTestCleared: !!currentDriverProfile?.passedDrugTest,
+            driverBackgroundCheckCleared: !!currentDriverProfile?.passedBackgroundCheck,
           driverVehicleMake: currentDriverProfile?.vehicleMake || "",
           driverVehicleModel: currentDriverProfile?.vehicleModel || "",
           driverVehicleColor: currentDriverProfile?.vehicleColor || "",
