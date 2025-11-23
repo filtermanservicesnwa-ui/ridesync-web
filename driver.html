@@ -71,12 +71,17 @@
       font-size: 0.9rem;
       font-weight: 600;
     }
-    .btn-primary { background: #22c55e; color: #022c22; }
-    .btn-secondary {
-      background: #020617;
-      color: #e5e7eb;
-      border: 1px solid #4b5563;
-    }
+      .btn-primary { background: #22c55e; color: #022c22; }
+      .btn-secondary {
+        background: #020617;
+        color: #e5e7eb;
+        border: 1px solid #4b5563;
+      }
+      .btn-danger {
+        background: #7f1d1d;
+        color: #fee2e2;
+        border: 1px solid #fca5a5;
+      }
     .btn-small { font-size: 0.78rem; padding: 6px 10px; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
     .row > div { flex: 1 1 150px; }
@@ -317,6 +322,9 @@
       <button id="completeTripButton" class="btn-primary" style="margin-top:4px;">
         Complete trip
       </button>
+        <button id="driverCancelButton" class="btn-danger" style="margin-top:4px;">
+          Cancel ride
+        </button>
 
       <div id="activeRideError" class="error"></div>
     </div>
@@ -388,6 +396,7 @@
     const markArrivedButton = document.getElementById("markArrivedButton");
     const startTripButton = document.getElementById("startTripButton");
     const completeTripButton = document.getElementById("completeTripButton");
+    const driverCancelButton = document.getElementById("driverCancelButton");
 
     const showBoardingQrButton = document.getElementById("showBoardingQrButton");
     const showDropoffQrButton = document.getElementById("showDropoffQrButton");
@@ -899,6 +908,29 @@
       }
     }
 
+    async function cancelActiveRideAsDriver() {
+      if (!activeRideGroup.length) return;
+      activeRideError.textContent = "";
+      driverError.textContent = "";
+      try {
+        const batch = writeBatch(db);
+        activeRideGroup.forEach((r) => {
+          const ref = doc(db, "rideRequests", r.id);
+          batch.update(ref, {
+            status: "canceled_by_driver",
+            driverCanceledAt: serverTimestamp()
+          });
+        });
+        await batch.commit();
+        driverMessage.textContent = "Ride canceled.";
+        activeRideOverlay.classList.remove("active");
+        activeRideGroup = [];
+      } catch (err) {
+        console.error("cancelActiveRideAsDriver error", err);
+        activeRideError.textContent = err.message || "Error canceling ride.";
+      }
+    }
+
     markArrivedButton.addEventListener("click", () => {
       updateActiveRideStatus("driver_arrived");
     });
@@ -919,6 +951,10 @@
       updateActiveRideStatus("completed");
       activeRideOverlay.classList.remove("active");
       activeRideGroup = [];
+    });
+
+    driverCancelButton.addEventListener("click", () => {
+      cancelActiveRideAsDriver();
     });
 
     closeActiveRideButton.addEventListener("click", () => {
