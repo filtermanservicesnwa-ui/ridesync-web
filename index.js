@@ -10,6 +10,21 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+const RIDE_STATUS = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+  ARRIVED_AT_PICKUP: "ARRIVED_AT_PICKUP",
+  IN_PROGRESS: "IN_PROGRESS",
+  ARRIVED_AT_DROPOFF: "ARRIVED_AT_DROPOFF",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED"
+};
+
+const POOL_STATE = {
+  SEARCHING: "SEARCHING",
+  MATCHED: "MATCHED"
+};
+
 /**
  * Helper: calculate distance between two lat/lng points in kilometers (Haversine).
  */
@@ -56,9 +71,9 @@ exports.notifyDriverOnNewRide = functions.firestore
     const rideId = context.params.rideId;
 
     try {
-      const status = ride.status || "pending";
+      const status = ride.status || RIDE_STATUS.PENDING;
       // Only notify on fresh rides that need a driver
-      const notifyStatuses = ["pending_driver", "pooled_pending_driver", "pending"];
+      const notifyStatuses = [RIDE_STATUS.PENDING];
       if (!notifyStatuses.includes(status)) {
         console.log(`[notifyDriverOnNewRide] Ride ${rideId} status=${status}, skipping.`);
         return null;
@@ -184,11 +199,8 @@ exports.uofaAutoPool = functions.firestore
       const candidatesSnap = await db
         .collection("rideRequests")
         .where("membershipType", "==", "uofa_unlimited")
-        .where("status", "in", [
-          "pending_driver",
-          "pool_searching",
-          "pooled_pending_driver",
-        ])
+        .where("status", "==", RIDE_STATUS.PENDING)
+        .where("poolState", "==", POOL_STATE.SEARCHING)
         .orderBy("createdAt", "desc")
         .limit(20)
         .get();
@@ -280,21 +292,23 @@ exports.uofaAutoPool = functions.firestore
       // update new ride
       batch.update(newRideRef, {
         poolType: "uofa",
+        poolState: POOL_STATE.MATCHED,
         isGroupRide: true,
         groupId: groupId,
         currentRiderCount: 2,
         maxRiders: 2,
-        status: "pooled_pending_driver",
+        status: RIDE_STATUS.PENDING,
       });
 
       // update matched ride
       batch.update(matchRideRef, {
         poolType: "uofa",
+        poolState: POOL_STATE.MATCHED,
         isGroupRide: true,
         groupId: groupId,
         currentRiderCount: 2,
         maxRiders: 2,
-        status: "pooled_pending_driver",
+        status: RIDE_STATUS.PENDING,
       });
 
       await batch.commit();
