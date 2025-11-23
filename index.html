@@ -791,6 +791,63 @@
     let currentRideStatus = null;
     let currentRideWatcher = null;
 
+      const riderCancelableStatuses = new Set([
+        "pending_driver",
+        "pooled_pending_driver",
+        "pool_searching",
+        "driver_assigned",
+        "driver_arrived",
+        "pending"
+      ]);
+
+      function clearCurrentRideState() {
+        currentRideId = null;
+        currentRideStatus = null;
+        if (currentRideWatcher) {
+          currentRideWatcher();
+          currentRideWatcher = null;
+        }
+        if (activeRideUnsub) {
+          activeRideUnsub();
+          activeRideUnsub = null;
+        }
+        if (activeGroupUnsub) {
+          activeGroupUnsub();
+          activeGroupUnsub = null;
+        }
+        hideGroupQr();
+      }
+
+      function resetJoinModeUi() {
+        joinMode = false;
+        joinTargetRide = null;
+        if (joinBanner) joinBanner.style.display = "none";
+        if (ridersSection) ridersSection.style.display = "block";
+        if (numRidersEl) {
+          numRidersEl.disabled = false;
+        }
+        updateSyncButtonLabel();
+      }
+
+      function returnToHomeAfterRide(message = "", isError = false) {
+        if (riderOverlay) riderOverlay.classList.remove("active");
+        if (riderMiniBar) riderMiniBar.classList.remove("active");
+        if (rideSummary) rideSummary.style.display = "none";
+        showRideView();
+        clearPoolGroupUI();
+        resetJoinModeUi();
+        hideGroupQr();
+        if (cancelError) cancelError.textContent = "";
+
+        if (isError) {
+          profileError.textContent = message || "";
+          profileMessage.textContent = "";
+        } else {
+          profileMessage.textContent = message || "";
+          profileError.textContent = "";
+        }
+      }
+
     function showAuthView() {
       authView.classList.add("active");
       rideView.classList.remove("active");
@@ -1616,12 +1673,24 @@
         currentRideWatcher = null;
       }
       const rideRef = doc(db, "rideRequests", rideId);
-      currentRideWatcher = onSnapshot(rideRef, (snap) => {
-        if (!snap.exists()) return;
-        const data = snap.data();
-        const status = data.status || null;
+        currentRideWatcher = onSnapshot(rideRef, (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          const status = data.status || null;
 
-        currentRideStatus = status;
+          currentRideStatus = status;
+
+          if (status === "canceled_by_driver") {
+            clearCurrentRideState();
+            returnToHomeAfterRide("Driver canceled your ride. You're back on the home screen.", true);
+            return;
+          }
+
+          if (status === "canceled_by_rider") {
+            clearCurrentRideState();
+            returnToHomeAfterRide("Ride canceled.");
+            return;
+          }
 
         // Driver assigned / arrived / in progress → show overlay or mini bar
         if (
@@ -1697,47 +1766,34 @@
       });
     }
 
-    cancelRideButton.addEventListener("click", async () => {
-      cancelError.textContent = "";
-      profileMessage.textContent = "";
-      if (!currentRideId) {
-        cancelError.textContent = "No active ride to cancel.";
-        return;
-      }
-
-      if (
-        currentRideStatus &&
-        currentRideStatus !== "pending_driver" &&
-        currentRideStatus !== "pooled_pending_driver" &&
-        currentRideStatus !== "pool_searching"
-      ) {
-        cancelError.textContent = "Ride can no longer be canceled.";
-        return;
-      }
-
-      try {
-        const rideRef = doc(db, "rideRequests", currentRideId);
-        await updateDoc(rideRef, {
-          status: "canceled_by_rider",
-          paymentStatus: "canceled",
-          canceledAt: serverTimestamp()
-        });
-
-        currentRideId = null;
-        currentRideStatus = null;
-        if (currentRideWatcher) {
-          currentRideWatcher();
-          currentRideWatcher = null;
+      cancelRideButton.addEventListener("click", async () => {
+        cancelError.textContent = "";
+        profileMessage.textContent = "";
+        if (!currentRideId) {
+          cancelError.textContent = "No active ride to cancel.";
+          return;
         }
 
-        hideGroupQr();
-        showRideView();
-        profileMessage.textContent = "Ride canceled, you won't be charged.";
-      } catch (err) {
-        console.error(err);
-        cancelError.textContent = "Could not cancel ride.";
-      }
-    });
+        if (currentRideStatus && !riderCancelableStatuses.has(currentRideStatus)) {
+          cancelError.textContent = "Ride can no longer be canceled.";
+          return;
+        }
+
+        try {
+          const rideRef = doc(db, "rideRequests", currentRideId);
+          await updateDoc(rideRef, {
+            status: "canceled_by_rider",
+            paymentStatus: "canceled",
+            canceledAt: serverTimestamp()
+          });
+
+          clearCurrentRideState();
+          returnToHomeAfterRide("Ride canceled, you won't be charged.");
+        } catch (err) {
+          console.error(err);
+          cancelError.textContent = "Could not cancel ride.";
+        }
+      });
 
     // Rider overlay buttons
     if (closeRiderOverlayButton && riderOverlay) {
