@@ -535,14 +535,14 @@
     </div>
 
     <!-- LOADING VIEW -->
-    <div id="loadingView">
-      <h2>RideSync</h2>
-      <div class="loading-center">
-        <div class="loading-spinner"></div>
-        <div>Syncing your ride…</div>
-        <div class="small">Pre-authorizing payment and matching your driver.</div>
-       <div>
-      <div>
+      <div id="loadingView">
+        <h2>RideSync</h2>
+        <div class="loading-center">
+          <div class="loading-spinner"></div>
+          <div>Syncing your ride…</div>
+          <div class="small">Pre-authorizing payment and matching your driver.</div>
+        </div>
+      </div>
 
       <!-- RIDE SUMMARY (after ride completes) -->
       <div id="rideSummary" style="display:none; color:#e5e7eb; padding:16px 4px; text-align:center;">
@@ -1507,124 +1507,73 @@
       };
     }
 
-    function updateRiderOverlay(rideId, data) {
-      if (!riderOverlay) return;
-      latestRideForOverlay = { rideId, data };
-      
-        const dest = data.toDestination || data.toAddress || "Destination";
-      const driverName = data.driverName || "Your driver";
-
-      const vehicleParts = [
-        data.driverVehicleColor || "",
-        data.driverVehicleMake || "",
-        data.driverVehicleModel || ""
-      ].filter(Boolean);
-      const vehicleStr = vehicleParts.join(" ").trim();
-
-      const plate = data.driverLicensePlate || "";
-
-      // Title + destination
-      riderOverlayTitle.textContent = "Driver assigned";
-      riderOverlayTag.textContent = dest;
-
-      // Driver info block
-      const infoLines = [];
-      infoLines.push(`<strong>${driverName}</strong>`);
-      if (vehicleStr) infoLines.push(vehicleStr);
-      if (plate) infoLines.push(`Plate: ${plate}`);
-
-      riderOverlayInfo.innerHTML = infoLines.join("<br/>");
-
-      // Human-readable status for rider
-      let st = data.status || "";
-      if (st === "driver_assigned") st = "Your driver is on the way.";
-      else if (st === "driver_arrived") st = "Your driver has arrived.";
-      else if (st === "in_progress") st = "Ride in progress.";
-      riderOverlayStatus.textContent = st;
-
-      riderOverlayError.textContent = "";
-
-      // Show overlay
-      riderOverlay.classList.add("active");
-    }
-
-    function formatTripEstimate(data) {
-      const estMinutes = data && typeof data.estimatedDurationMinutes === "number"
-        ? data.estimatedDurationMinutes
-        : null;
-      if (!estMinutes) return "";
-      if (estMinutes < 1) return "Trip under 1 minute.";
-      if (estMinutes < 10) return `Estimated trip: ~${estMinutes.toFixed(1)} min.`;
-      return `Estimated trip: about ${Math.round(estMinutes)} min.`;
-    }
-
-      const dest =
-        data.toDestination ||
-        data.toAddress ||
-        data.destAddress ||
-        "Destination";
-
-      const driverName = data.driverName || "Your driver";
-
-      const vehicleParts = [
-        data.driverVehicleColor || "",
-        data.driverVehicleMake || "",
-        data.driverVehicleModel || ""
-      ].filter(Boolean);
-      const vehicleStr = vehicleParts.join(" ").trim();
-
-      const plate = data.driverLicensePlate || "";
-
-      // Title + destination tag
-      riderOverlayTitle.textContent = "Driver assigned";
-      riderOverlayTag.textContent = dest;
-
-      // Driver info block
-      const infoLines = [];
-      infoLines.push(`<strong>${driverName}</strong>`);
-      if (vehicleStr) infoLines.push(vehicleStr);
-      if (plate) infoLines.push(`Plate: ${plate}`);
-
-      riderOverlayInfo.innerHTML = infoLines.join("<br/>");
-
-      // Friendly status + trip estimate
-      const tripEstimate = formatTripEstimate(data);
-      let friendlyStatus = "";
-
-      if (data.status === "driver_assigned") {
-        friendlyStatus = "Your driver is on the way.";
-      } else if (data.status === "driver_arrived") {
-        friendlyStatus = "Your driver has arrived.";
-      } else if (data.status === "in_progress") {
-        friendlyStatus = "Ride in progress.";
-      } else {
-        friendlyStatus = data.status || "";
+      function formatTripEstimate(data) {
+        const estMinutes = data && typeof data.estimatedDurationMinutes === "number"
+          ? data.estimatedDurationMinutes
+          : null;
+        if (!estMinutes) return "";
+        if (estMinutes < 1) return "Trip under 1 minute.";
+        if (estMinutes < 10) return `Estimated trip: ~${estMinutes.toFixed(1)} min.`;
+        return `Estimated trip: about ${Math.round(estMinutes)} min.`;
       }
 
-      riderOverlayStatus.textContent = tripEstimate
-        ? `${friendlyStatus} ${tripEstimate}`
-        : friendlyStatus;
+      function updateRiderOverlay(rideId, data) {
+        if (!riderOverlay) return;
+        latestRideForOverlay = { rideId, data };
 
-      riderOverlayError.textContent = "";
+        const dest =
+          data.toDestination ||
+          data.toAddress ||
+          data.destAddress ||
+          "Destination";
 
-      // Boarding QR (rider-side boarding pass)
-      if (boardingQrCanvas) {
-        const boardingValue = `board:${rideId}`;
-        if (!boardingQr) {
-          boardingQr = new QRious({
-            element: boardingQrCanvas,
-            size: 140,
-            value: boardingValue
-          });
-        } else {
-          boardingQr.set({ value: boardingValue });
+        const driverName = data.driverName || "Your driver";
+        const vehicleParts = [
+          data.driverVehicleColor || "",
+          data.driverVehicleMake || "",
+          data.driverVehicleModel || ""
+        ].filter(Boolean);
+        const vehicleStr = vehicleParts.join(" ").trim();
+        const plate = data.driverLicensePlate || "";
+
+        riderOverlayTitle.textContent = "Driver assigned";
+        riderOverlayTag.textContent = dest;
+
+        const infoLines = [];
+        infoLines.push(`<strong>${driverName}</strong>`);
+        if (vehicleStr) infoLines.push(vehicleStr);
+        if (plate) infoLines.push(`Plate: ${plate}`);
+        riderOverlayInfo.innerHTML = infoLines.join("<br/>");
+
+        const friendlyStatus = (() => {
+          if (data.status === "driver_assigned") return "Your driver is on the way.";
+          if (data.status === "driver_arrived") return "Your driver has arrived.";
+          if (data.status === "in_progress") return "Ride in progress.";
+          return data.status || "";
+        })();
+        const tripEstimate = formatTripEstimate(data);
+        const combinedStatus = [friendlyStatus, tripEstimate].filter(Boolean).join(" ").trim();
+        riderOverlayStatus.textContent = combinedStatus;
+
+        riderOverlayError.textContent = "";
+
+        if (boardingQrCanvas) {
+          const boardingValue = `board:${rideId}`;
+          if (!boardingQr) {
+            boardingQr = new QRious({
+              element: boardingQrCanvas,
+              size: 140,
+              value: boardingValue
+            });
+          } else {
+            boardingQr.set({ value: boardingValue });
+          }
         }
-      }
 
-      // Show overlay, hide mini bar + summary if they were showing
-      riderOverlay.classList.add("active");
-      if (riderMiniBar) riderMiniBar.classList.remove("active");
-      if (rideSummary) rideSummary.style.display = "none";
+        riderOverlay.classList.add("active");
+        if (riderMiniBar) riderMiniBar.classList.remove("active");
+        if (rideSummary) rideSummary.style.display = "none";
+      }
 
     function showRideSummary(data) {
       if (!rideSummary || !rideSummaryText) return;
@@ -2145,15 +2094,17 @@
       }
     }
 
-    function trySetupAutocompleteEarly() {
-      if (!window.google || !google.maps || !google.maps.places) {
-        setTimeout(trySetupAutocompleteEarly, 800);
-        return;
+      function trySetupAutocompleteEarly() {
+        if (!window.google || !google.maps || !google.maps.places) {
+          setTimeout(trySetupAutocompleteEarly, 800);
+          return;
+        }
+        setupDestinationAutocomplete();
       }
-      setupDestinationAutocomplete();
+
       trySetupAutocompleteEarly();
-  }
-   
+    }
+    
   </script>
 </body>
 </html>
