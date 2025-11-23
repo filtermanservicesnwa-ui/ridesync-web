@@ -234,6 +234,11 @@
         font-size: 1.1rem;
         overflow: hidden;
         position: relative;
+        cursor: pointer;
+      }
+      .driver-avatar:focus-visible {
+        outline: 2px solid var(--rs-accent);
+        outline-offset: 2px;
       }
       .driver-avatar img {
         width: 100%;
@@ -249,6 +254,24 @@
         justify-content: center;
         font-weight: 600;
         color: #e5e7eb;
+      }
+      .driver-avatar-edit {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.5);
+        background: rgba(2,6,23,0.85);
+        padding: 2px 8px;
+        font-size: 0.65rem;
+        color: #e5e7eb;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+      }
+      .driver-avatar:hover .driver-avatar-edit,
+      .driver-avatar:focus-visible .driver-avatar-edit {
+        opacity: 1;
       }
     .driver-header-text { flex: 1 1 auto; min-width: 0; }
     .driver-name { font-size: 1rem; font-weight: 600; }
@@ -483,10 +506,18 @@
 
         <div class="driver-header">
           <div class="driver-header-left">
-            <div id="driverAvatar" class="driver-avatar">
+            <div
+              id="driverAvatar"
+              class="driver-avatar"
+              role="button"
+              tabindex="0"
+              aria-label="Change profile photo"
+            >
               <img id="driverAvatarImg" alt="Driver avatar" />
               <span id="driverAvatarFallback" class="avatar-fallback">DR</span>
+              <div class="driver-avatar-edit">Edit</div>
             </div>
+            <input id="driverAvatarQuickInput" type="file" accept="image/*" style="display:none;" />
             <div class="driver-header-text">
               <div class="driver-name" id="driverName">Driver</div>
               <div class="driver-detail" id="driverDetail"></div>
@@ -733,6 +764,7 @@
       const driverAvatar = document.getElementById("driverAvatar");
       const driverAvatarImg = document.getElementById("driverAvatarImg");
       const driverAvatarFallback = document.getElementById("driverAvatarFallback");
+      const driverAvatarQuickInput = document.getElementById("driverAvatarQuickInput");
     const driverNameEl = document.getElementById("driverName");
     const driverDetailEl = document.getElementById("driverDetail");
     const onlineDot = document.getElementById("onlineDot");
@@ -791,6 +823,7 @@
     let map;
     let driverMarker;
     let ridesUnsub = null;
+    let latestRideSnapshot = [];
     let isOnline = false;
 
     let activeRideGroup = [];
@@ -1168,6 +1201,7 @@
         onlineLabel.textContent = "Offline";
         toggleOnlineButton.textContent = "Sync online";
       }
+      renderRides(latestRideSnapshot);
     }
 
       if (editDriverProfileButton) {
@@ -1182,6 +1216,69 @@
       if (saveDriverProfileButton) {
         saveDriverProfileButton.addEventListener("click", () => {
           saveDriverProfile();
+        });
+      }
+
+      function openDriverAvatarPicker() {
+        if (!currentUser) {
+          if (driverError) driverError.textContent = "Log in to update your photo.";
+          return;
+        }
+        if (driverError) driverError.textContent = "";
+        driverAvatarQuickInput?.click();
+      }
+
+      if (driverAvatar) {
+        driverAvatar.addEventListener("click", (evt) => {
+          evt.preventDefault();
+          openDriverAvatarPicker();
+        });
+        driverAvatar.addEventListener("keypress", (evt) => {
+          if (evt.key === "Enter" || evt.key === " ") {
+            evt.preventDefault();
+            openDriverAvatarPicker();
+          }
+        });
+      }
+
+      if (driverAvatarQuickInput) {
+        driverAvatarQuickInput.addEventListener("change", async () => {
+          if (!driverAvatarQuickInput.files || !driverAvatarQuickInput.files[0]) {
+            return;
+          }
+          if (!currentUser) {
+            driverError.textContent = "Log in to update your photo.";
+            driverAvatarQuickInput.value = "";
+            return;
+          }
+          driverMessage.textContent = "Uploading profile photo…";
+          driverError.textContent = "";
+          try {
+            const avatarUrl = await uploadDriverFile(
+              driverAvatarQuickInput,
+              `drivers/${currentUser.uid}/avatar.jpg`
+            );
+            if (!avatarUrl) {
+              driverError.textContent = "Select an image to upload.";
+            } else {
+              await setDoc(
+                doc(db, "drivers", currentUser.uid),
+                {
+                  avatarUrl,
+                  profilePicUrl: avatarUrl,
+                  updatedAt: serverTimestamp()
+                },
+                { merge: true }
+              );
+              await loadDriverProfile();
+              driverMessage.textContent = "Profile photo updated.";
+            }
+          } catch (err) {
+            console.error("quick avatar upload error", err);
+            driverError.textContent = err.message || "Could not update profile photo.";
+          } finally {
+            driverAvatarQuickInput.value = "";
+          }
         });
       }
 
@@ -1215,6 +1312,7 @@
             const d = docSnap.data();
             rides.push({ id: docSnap.id, ...d });
           });
+          latestRideSnapshot = rides;
           renderRides(rides);
         },
         (err) => {
@@ -1232,11 +1330,16 @@
       return `<span class="tag tag-basic">${m}</span>`;
     }
 
-    function renderRides(allRides) {
+    function renderRides(allRides = []) {
+      if (!ridesList) return;
+      if (!isOnline) {
+        ridesList.innerHTML =
+          '<div class="small">Go online to see pending RideSync requests.</div>';
+        return;
+      }
       ridesList.innerHTML = "";
 
       const visible = allRides.filter((r) => {
-        if (!isOnline) return false;
         if (r.driverId) return false;
         const st = r.status || RIDE_STATUS.PENDING;
         return st === RIDE_STATUS.PENDING;
