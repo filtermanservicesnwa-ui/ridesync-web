@@ -396,6 +396,13 @@
       gap: 8px;
       background: rgba(2,6,23,0.7);
     }
+    .scan-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 6px 0;
+    }
     #driverQrScanner {
       width: 100%;
       min-height: 240px;
@@ -642,6 +649,15 @@
       <div class="ride-status-label" id="activeRideStatusLabel"></div>
       <div id="activeRideInstructions" class="small" style="margin-bottom:8px;"></div>
 
+      <div id="qrScanButtons" class="scan-actions" style="display:none;">
+        <button id="scanPickupButton" class="btn-secondary btn-small" type="button">
+          Scan pickup QR
+        </button>
+        <button id="scanDropoffButton" class="btn-secondary btn-small" type="button">
+          Scan dropoff QR
+        </button>
+      </div>
+
       <div id="qrScannerContainer" class="driver-qr-scanner">
         <div id="driverQrScanner"></div>
         <div id="qrScannerStatus" class="qr-scanner-status"></div>
@@ -853,6 +869,9 @@
     const qrScannerContainer = document.getElementById("qrScannerContainer");
     const driverQrScannerEl = document.getElementById("driverQrScanner");
     const qrScannerStatus = document.getElementById("qrScannerStatus");
+    const scanPickupButton = document.getElementById("scanPickupButton");
+    const scanDropoffButton = document.getElementById("scanDropoffButton");
+    const qrScanButtons = document.getElementById("qrScanButtons");
     const stopScannerButton = document.getElementById("stopScannerButton");
     const geofenceStatusEl = document.getElementById("geofenceStatus");
     const driverCancelModal = document.getElementById("driverCancelModal");
@@ -934,15 +953,27 @@
           .join("");
       }
 
+      function normalizePhotoUrl(url) {
+        if (!url) return "";
+        try {
+          return new URL(url, window.location.href).href;
+        } catch (err) {
+          return url;
+        }
+      }
+
         function updateDriverAvatar(displayName, photoUrl) {
           if (!driverAvatar) return;
           const initials = (displayName || "DR").trim().charAt(0).toUpperCase() || "D";
           if (photoUrl && driverAvatarImg) {
-            try {
-              driverAvatarImg.src = encodeURI(photoUrl);
-            } catch (err) {
-              driverAvatarImg.src = photoUrl;
-            }
+            driverAvatarImg.src = normalizePhotoUrl(photoUrl);
+            driverAvatarImg.onerror = () => {
+              driverAvatarImg.style.display = "none";
+              if (driverAvatarFallback) {
+                driverAvatarFallback.textContent = initials;
+                driverAvatarFallback.style.display = "flex";
+              }
+            };
             driverAvatarImg.style.display = "block";
             if (driverAvatarFallback) driverAvatarFallback.style.display = "none";
           } else if (driverAvatarImg) {
@@ -1898,13 +1929,20 @@
         .join("<br/>");
     }
 
-    function ensureScannerForStage(stage) {
-      if (!stage) {
-        stopQrScanner();
-        return;
+    function updateScanButtons() {
+      if (!scanPickupButton || !scanDropoffButton || !qrScanButtons) return;
+      const showPickup =
+        activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP && !activeRideCheckInVerified;
+      const showDropoff = activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF;
+      if (showPickup || showDropoff) {
+        qrScanButtons.style.display = "flex";
+      } else {
+        qrScanButtons.style.display = "none";
       }
-      if (qrScannerStage === stage && qrScannerActive) return;
-      startQrScanner(stage);
+      scanPickupButton.style.display = showPickup ? "inline-flex" : "none";
+      scanDropoffButton.style.display = showDropoff ? "inline-flex" : "none";
+      scanPickupButton.disabled = qrScannerActive && qrScannerStage === "pickup";
+      scanDropoffButton.disabled = qrScannerActive && qrScannerStage === "dropoff";
     }
 
     function refreshActiveRideUi() {
@@ -1931,9 +1969,9 @@
           [RIDE_STATUS.ACCEPTED]: 'Navigate to pickup. Tap "Mark arrived" when you reach the rider.',
           [RIDE_STATUS.ARRIVED_AT_PICKUP]: activeRideCheckInVerified
             ? "Pickup confirmed. Start the trip when everyone is on board."
-            : "Scan the rider's pickup QR to unlock Start Trip.",
+            : "Tap Scan pickup QR to verify the rider before starting the trip.",
           [RIDE_STATUS.IN_PROGRESS]: "Drive to the destination. Complete trip once you're at the dropoff zone.",
-          [RIDE_STATUS.ARRIVED_AT_DROPOFF]: "Scan the rider's dropoff QR to finish the trip.",
+          [RIDE_STATUS.ARRIVED_AT_DROPOFF]: "Tap Scan dropoff QR to finish the trip.",
           [RIDE_STATUS.COMPLETED]: "Trip completed.",
           [RIDE_STATUS.CANCELLED]: "Trip cancelled."
         }[activeRideStatus] || "";
@@ -1955,16 +1993,13 @@
           ? "none"
           : "block";
 
-      if (
-        activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP &&
-        !activeRideCheckInVerified
-      ) {
-        ensureScannerForStage("pickup");
-      } else if (activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF) {
-        ensureScannerForStage("dropoff");
-      } else if (qrScannerActive) {
+      const scannerNeeded =
+        (activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP && !activeRideCheckInVerified) ||
+        activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF;
+      if (!scannerNeeded && qrScannerActive) {
         stopQrScanner();
       }
+      updateScanButtons();
 
       if (
         activeRideStatus !== RIDE_STATUS.IN_PROGRESS &&
@@ -2027,7 +2062,36 @@
       return qrScanner;
     }
 
+    async function getPreferredCameraId() {
+      if (!window.Html5Qrcode || typeof Html5Qrcode.getCameras !== "function") {
+        return null;
+      }
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (!Array.isArray(cameras) || !cameras.length) {
+          return null;
+        }
+        const rearCamera =
+          cameras.find((cam) => /back|rear|environment/i.test(cam.label)) || cameras[0];
+        return rearCamera.id;
+      } catch (err) {
+        console.warn("Camera lookup failed", err);
+        return null;
+      }
+    }
+
     async function startQrScanner(stage) {
+      if (stage !== "pickup" && stage !== "dropoff") return;
+      const isPickupStage = stage === "pickup";
+      const stageAllowed = isPickupStage
+        ? activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP && !activeRideCheckInVerified
+        : activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF;
+      if (!stageAllowed) {
+        activeRideError.textContent = isPickupStage
+          ? "Tap Mark arrived first, then scan the pickup QR."
+          : "Arrive at the dropoff zone before scanning.";
+        return;
+      }
       const scanner = await ensureQrScannerReady();
       if (!scanner) return;
       const rideId = getPrimaryRideId();
@@ -2038,32 +2102,66 @@
       qrScannerStage = stage;
       qrScannerStatus.textContent = "Align the rider's QR within the frame.";
       qrScannerContainer.style.display = "flex";
-      try {
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 240, height: 240 } },
-          (decodedText) => {
-            const expected =
-              stage === "pickup"
-                ? `${QR_PAYLOAD.PICKUP_PREFIX}${rideId}`
-                : `${QR_PAYLOAD.DROPOFF_PREFIX}${rideId}`;
-            if (decodedText === expected) {
-              stopQrScanner();
-              if (stage === "pickup") {
-                handlePickupCheckInSuccess();
-              } else {
-                handleDropoffScanSuccess();
-              }
-            } else {
-              qrScannerStatus.textContent = "QR mismatch. Ask the rider to show their RideSync code.";
-            }
+      const scanConfig = { fps: 10, qrbox: { width: 260, height: 260 } };
+      const onScan = (decodedText) => {
+        const expected =
+          stage === "pickup"
+            ? `${QR_PAYLOAD.PICKUP_PREFIX}${rideId}`
+            : `${QR_PAYLOAD.DROPOFF_PREFIX}${rideId}`;
+        if (decodedText === expected) {
+          stopQrScanner();
+          if (stage === "pickup") {
+            handlePickupCheckInSuccess();
+          } else {
+            handleDropoffScanSuccess();
           }
-        );
-        qrScannerActive = true;
-      } catch (err) {
+        } else {
+          qrScannerStatus.textContent =
+            "QR mismatch. Ask the rider to open their RideSync code.";
+        }
+      };
+
+      const friendlyError = (err) => {
         console.error("QR scanner error", err);
-        qrScannerStatus.textContent = "Unable to start scanner. Check camera permissions.";
-      }
+        if (/NotAllowedError/i.test(err?.name || err?.message || "")) {
+          qrScannerStatus.textContent =
+            "Camera permission blocked. Enable camera access in Safari/Chrome and try again.";
+        } else if (/NotFoundError/i.test(err?.name || err?.message || "")) {
+          qrScannerStatus.textContent = "No camera found on this device.";
+        } else {
+          qrScannerStatus.textContent =
+            "Unable to start scanner. Allow camera access and try again.";
+        }
+      };
+
+      const tryStart = async () => {
+        const cameraId = await getPreferredCameraId();
+        try {
+          if (cameraId) {
+            await scanner.start(cameraId, scanConfig, onScan);
+          } else {
+            await scanner.start({ facingMode: { exact: "environment" } }, scanConfig, onScan);
+          }
+          qrScannerActive = true;
+          updateScanButtons();
+        } catch (err) {
+          if (!cameraId) {
+            try {
+              await scanner.start({ facingMode: "environment" }, scanConfig, onScan);
+              qrScannerActive = true;
+              updateScanButtons();
+              return;
+            } catch (fallbackErr) {
+              friendlyError(fallbackErr);
+              return;
+            }
+          } else {
+            friendlyError(err);
+          }
+        }
+      };
+
+      await tryStart();
     }
 
     async function stopQrScanner() {
@@ -2080,6 +2178,7 @@
       if (qrScannerContainer) {
         qrScannerContainer.style.display = "none";
       }
+      updateScanButtons();
     }
 
     async function handlePickupCheckInSuccess() {
@@ -2193,6 +2292,18 @@
         }
         driverCancelModal.style.display = "none";
         await cancelActiveRideAsDriver(reason);
+      });
+    }
+
+    if (scanPickupButton) {
+      scanPickupButton.addEventListener("click", () => {
+        startQrScanner("pickup");
+      });
+    }
+
+    if (scanDropoffButton) {
+      scanDropoffButton.addEventListener("click", () => {
+        startQrScanner("dropoff");
       });
     }
 
