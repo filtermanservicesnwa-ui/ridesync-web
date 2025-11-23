@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>RideSync – NWA & U of A</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <head>
+    <meta charset="UTF-8" />
+    <title>RideSync – NWA & U of A</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest-rider.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/ridesync-icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/ridesync-icon-192.png" />
 
   <!-- Google Maps / Places -->
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDlYSl5rfovahECuBSbkELw2uyC6-Ucmr0&libraries=places"></script>
@@ -14,30 +20,43 @@
   <!-- QR code library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #1d4ed8, #020617 55%);
-      color: #f9fafb;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px;
-    }
-    .card {
-      background: rgba(15,23,42,0.96);
-      border-radius: 18px;
-      border: 1px solid rgba(148,163,184,0.5);
-      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
-      width: 100%;
-      max-width: 520px;
-      max-height: 96vh;
-      padding: 22px 18px 18px;
-      overflow-y: auto;
-    }
+    <style>
+      :root {
+        --rs-bg: #010817;
+        --rs-surface: rgba(10, 15, 35, 0.92);
+        --rs-card: rgba(12, 19, 42, 0.9);
+        --rs-border: rgba(148, 163, 184, 0.3);
+        --rs-border-strong: rgba(59, 130, 246, 0.5);
+        --rs-text: #f9fafb;
+        --rs-muted: #94a3b8;
+        --rs-accent: #0ea5e9;
+        --rs-accent-soft: #5de0a6;
+        --rs-shadow: 0 35px 120px rgba(2, 6, 23, 0.85);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: radial-gradient(circle at 20% 0%, #0f172a 0%, #020617 55%, #010409 100%);
+        color: var(--rs-text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 12px 32px;
+      }
+      .card {
+        background: var(--rs-card);
+        border-radius: 24px;
+        border: 1px solid var(--rs-border);
+        box-shadow: var(--rs-shadow);
+        width: 100%;
+        max-width: 540px;
+        max-height: 96vh;
+        padding: 28px 22px 22px;
+        overflow-y: auto;
+        backdrop-filter: blur(22px);
+      }
     h1, h2 { margin: 0 0 8px; text-align: center; }
     h1 { font-size: 1.6rem; }
     h2 { font-size: 1.1rem; }
@@ -67,40 +86,55 @@
       outline: 2px solid #2563eb;
       outline-offset: 1px;
     }
-    button {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 999px;
-      border: none;
-      cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin-top: 4px;
-    }
-    .btn-primary { background: #22c55e; color: #022c22; }
-    .btn-secondary {
-      background: #020617;
-      color: #e5e7eb;
-      border: 1px solid #4b5563;
-      margin-top: 8px;
-    }
-    .btn-small {
-      width: auto;
-      padding: 6px 10px;
-      font-size: 0.8rem;
-      border-radius: 999px;
-    }
+      button {
+        width: 100%;
+        padding: 12px 16px;
+        border-radius: 16px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-top: 6px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        box-shadow: 0 14px 28px rgba(1, 4, 9, 0.45);
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      .btn-primary {
+        background: linear-gradient(120deg, var(--rs-accent), var(--rs-accent-soft));
+        color: #022c22;
+        border: none;
+      }
+      .btn-secondary {
+        background: rgba(2,6,23,0.75);
+        color: #e5e7eb;
+        border: 1px solid var(--rs-border);
+        margin-top: 8px;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--rs-text);
+        border-color: rgba(148,163,184,0.5);
+      }
+      .btn-small {
+        width: auto;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        border-radius: 999px;
+        box-shadow: none;
+      }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
     .row > div { flex: 1 1 120px; }
-    .section-title {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #9ca3af;
-      margin: 14px 0 6px;
-      border-top: 1px solid rgba(148,163,184,0.4);
-      padding-top: 8px;
-    }
+      .section-title {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--rs-muted);
+        margin: 18px 0 10px;
+        border-top: 1px solid rgba(255,255,255,0.04);
+        padding-top: 10px;
+      }
     .toggle-auth {
       display: flex;
       justify-content: center;
@@ -125,14 +159,15 @@
       border: 1px solid #4b5563;
       margin-bottom: 10px;
     }
-    .fare-box {
-      background: rgba(15,23,42,0.9);
-      border-radius: 14px;
-      border: 1px solid rgba(148,163,184,0.5);
-      padding: 9px 11px;
-      font-size: 0.8rem;
-      margin-bottom: 10px;
-    }
+      .fare-box {
+        background: rgba(3,10,26,0.78);
+        border-radius: 18px;
+        border: 1px solid var(--rs-border);
+        padding: 12px 14px;
+        font-size: 0.85rem;
+        margin-bottom: 12px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      }
     .fare-row {
       display: flex;
       justify-content: space-between;
@@ -200,23 +235,25 @@
     .rider-name { font-size: 1rem; font-weight: 600; }
     .rider-contact { font-size: 0.8rem; color: #9ca3af; }
       .driver-identity-card {
-        border-radius: 14px;
-        border: 1px solid rgba(148,163,184,0.4);
-        background: rgba(2,6,23,0.6);
-        padding: 10px;
-        margin: 8px 0;
+        border-radius: 18px;
+        border: 1px solid var(--rs-border);
+        background: rgba(2, 6, 23, 0.7);
+        padding: 14px;
+        margin: 10px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       }
-      .driver-identity-row {
+      .driver-identity-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
+        gap: 12px;
       }
       .driver-identity-avatar {
-        width: 48px;
-        height: 48px;
+        width: 60px;
+        height: 60px;
         border-radius: 999px;
-        border: 1px solid rgba(148,163,184,0.6);
+        border: 2px solid rgba(148,163,184,0.4);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -224,12 +261,49 @@
         color: #e5e7eb;
         background: #020617;
         overflow: hidden;
+        position: relative;
+      }
+      .driver-identity-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .avatar-fallback {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #e5e7eb;
+      }
+      .driver-identity-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .driver-identity-name-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .rating-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: rgba(14,165,233,0.18);
+        border: 1px solid rgba(14,165,233,0.4);
+        color: #bae6fd;
       }
       .verification-row {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
-        margin-bottom: 6px;
+        margin-top: 6px;
       }
       .verification-pill {
         display: inline-flex;
@@ -241,17 +315,41 @@
         font-size: 0.7rem;
         color: #e5e7eb;
       }
-      .driver-docs {
+      .driver-vehicle-section,
+      .driver-license-section {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        gap: 12px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 16px;
+        border: 1px solid rgba(148,163,184,0.2);
+        background: rgba(15,23,42,0.6);
       }
-      .driver-docs img {
-        width: 70px;
+      .driver-vehicle-section img,
+      .driver-license-section img {
+        width: 84px;
         height: 70px;
-        border-radius: 12px;
-        border: 1px solid rgba(148,163,184,0.5);
+        border-radius: 14px;
         object-fit: cover;
+        border: 1px solid rgba(148,163,184,0.3);
+        background: #020617;
+      }
+      .driver-vehicle-meta,
+      .driver-license-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .driver-vehicle-meta .label,
+      .driver-license-meta .label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--rs-muted);
+      }
+      .driver-license-text {
+        font-size: 0.85rem;
+        color: #e5e7eb;
       }
 
     .top-right {
@@ -261,6 +359,27 @@
       font-size: 0.7rem;
       color: #cbd5f5;
     }
+      .pwa-toast {
+        position: fixed;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%) translateY(120%);
+        background: rgba(2,6,23,0.95);
+        color: var(--rs-text);
+        border: 1px solid var(--rs-border-strong);
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-size: 0.85rem;
+        box-shadow: var(--rs-shadow);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        z-index: 120;
+      }
+      .pwa-toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
 
     .loading-center {
       display: flex;
@@ -324,10 +443,27 @@
       min-height:18px;
       margin-bottom:6px;
     }
+      @media (max-width: 520px) {
+        body {
+          padding: 12px;
+        }
+        .driver-vehicle-section,
+        .driver-license-section {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .driver-vehicle-section img,
+        .driver-license-section img {
+          width: 100%;
+          max-width: 220px;
+          height: auto;
+        }
+      }
   </style>
 </head>
-<body>
-  <div class="top-right" id="loginStatus"></div>
+  <body>
+    <div class="top-right" id="loginStatus"></div>
+    <div id="pwaToast" class="pwa-toast" role="status" aria-live="polite"></div>
 
   <div class="card">
     <!-- AUTH VIEW -->
@@ -620,17 +756,37 @@
         <div id="riderOverlayInfo"></div>
         <div id="riderOverlayStatus"></div>
 
-          <div id="driverIdentityCard" class="driver-identity-card" style="display:none;">
-            <div class="driver-identity-row">
-              <div id="driverIdentityAvatar" class="driver-identity-avatar">DR</div>
-              <div>
-                <div class="rider-name" id="driverIdentityName"></div>
-                <div class="rider-contact" id="driverIdentityPhone"></div>
+            <div id="driverIdentityCard" class="driver-identity-card" style="display:none;">
+              <div class="driver-identity-header">
+                <div id="driverIdentityAvatar" class="driver-identity-avatar">
+                  <img id="driverIdentityAvatarImg" alt="Driver avatar" />
+                  <span id="driverIdentityAvatarFallback" class="avatar-fallback">DR</span>
+                </div>
+                <div class="driver-identity-text">
+                  <div class="driver-identity-name-row">
+                    <div class="rider-name" id="driverIdentityName"></div>
+                    <span id="driverIdentityRating" class="rating-pill">★ --</span>
+                  </div>
+                  <div class="rider-contact" id="driverIdentityPhone"></div>
+                  <div id="driverIdentityBadges" class="verification-row" style="display:none;"></div>
+                </div>
+              </div>
+              <div class="driver-vehicle-section">
+                <img id="driverVehiclePhoto" alt="Driver vehicle" />
+                <div class="driver-vehicle-meta">
+                  <div class="label">Vehicle</div>
+                  <div class="vehicle-name" id="driverVehicleName"></div>
+                  <div class="vehicle-plate" id="driverVehiclePlate"></div>
+                </div>
+              </div>
+              <div class="driver-license-section">
+                <img id="driverLicensePhoto" alt="Driver license" />
+                <div class="driver-license-meta">
+                  <div class="label">Driver License (verified)</div>
+                  <div class="driver-license-text" id="driverLicenseText"></div>
+                </div>
               </div>
             </div>
-            <div id="driverIdentityBadges" class="verification-row" style="display:none;"></div>
-            <div id="driverIdentityDocs" class="driver-docs" style="display:none;"></div>
-          </div>
 
         <button id="contactDriverBtn" class="overlay-close" style="margin-top:8px;">
           Contact driver
@@ -823,12 +979,19 @@
     const riderOverlayInfo = document.getElementById("riderOverlayInfo");
     const riderOverlayStatus = document.getElementById("riderOverlayStatus");
     const riderOverlayError = document.getElementById("riderOverlayError");
-      const driverIdentityCard = document.getElementById("driverIdentityCard");
-      const driverIdentityAvatar = document.getElementById("driverIdentityAvatar");
-      const driverIdentityName = document.getElementById("driverIdentityName");
-      const driverIdentityPhone = document.getElementById("driverIdentityPhone");
-      const driverIdentityBadges = document.getElementById("driverIdentityBadges");
-      const driverIdentityDocs = document.getElementById("driverIdentityDocs");
+        const driverIdentityCard = document.getElementById("driverIdentityCard");
+        const driverIdentityAvatar = document.getElementById("driverIdentityAvatar");
+        const driverIdentityAvatarImg = document.getElementById("driverIdentityAvatarImg");
+        const driverIdentityAvatarFallback = document.getElementById("driverIdentityAvatarFallback");
+        const driverIdentityName = document.getElementById("driverIdentityName");
+        const driverIdentityPhone = document.getElementById("driverIdentityPhone");
+        const driverIdentityBadges = document.getElementById("driverIdentityBadges");
+        const driverIdentityRating = document.getElementById("driverIdentityRating");
+        const driverVehiclePhoto = document.getElementById("driverVehiclePhoto");
+        const driverVehicleName = document.getElementById("driverVehicleName");
+        const driverVehiclePlate = document.getElementById("driverVehiclePlate");
+        const driverLicensePhoto = document.getElementById("driverLicensePhoto");
+        const driverLicenseText = document.getElementById("driverLicenseText");
     const closeRiderOverlayButton = document.getElementById("closeRiderOverlayButton");
 
     const riderMiniBar = document.getElementById("riderMiniBar");
@@ -1421,18 +1584,22 @@
 
         const fareInfo = computeFareForMembership(plan, minutes, inHomeZone);
 
-        lastRideMetrics = {
-          durationMinutes: minutes,
-          distanceMeters: totalDistanceMeters,
-          inHomeZone,
-          fareBreakdown: fareInfo,
-          membershipLabel: fareInfo.membershipLabel
-        };
+          const etaMinutes = Math.max(1, Math.round(minutes));
+          const distanceMiles = totalDistanceMeters / 1609.34;
 
-        fareNotReady.style.display = "none";
-        fareReady.style.display = "block";
-        fareTime.textContent = `${minutes.toFixed(1)} min`;
-        fareDistance.textContent = `${(totalDistanceMeters / 1609.34).toFixed(2)} mi`;
+          lastRideMetrics = {
+            durationMinutes: minutes,
+            etaMinutes,
+            distanceMeters: totalDistanceMeters,
+            inHomeZone,
+            fareBreakdown: fareInfo,
+            membershipLabel: fareInfo.membershipLabel
+          };
+
+          fareNotReady.style.display = "none";
+          fareReady.style.display = "block";
+          fareTime.textContent = `ETA: ${etaMinutes} minutes`;
+          fareDistance.textContent = `${distanceMiles.toFixed(1)} mi`;
         fareMembership.textContent = fareInfo.membershipLabel;
         fareTotal.textContent = `$${fareInfo.total.toFixed(2)}`;
 
@@ -1669,14 +1836,60 @@
       };
     }
 
-      function formatTripEstimate(data) {
-        const estMinutes = data && typeof data.estimatedDurationMinutes === "number"
-          ? data.estimatedDurationMinutes
-          : null;
-        if (!estMinutes) return "";
-        if (estMinutes < 1) return "Trip under 1 minute.";
-        if (estMinutes < 10) return `Estimated trip: ~${estMinutes.toFixed(1)} min.`;
-        return `Estimated trip: about ${Math.round(estMinutes)} min.`;
+        function formatTripEstimate(data) {
+          const eta =
+            data && typeof data.driverEtaMinutes === "number"
+              ? data.driverEtaMinutes
+              : data && typeof data.etaMinutes === "number"
+              ? data.etaMinutes
+              : null;
+          if (eta != null) {
+            const roundedEta = Math.max(1, Math.round(eta));
+            return `ETA: ${roundedEta} minute${roundedEta === 1 ? "" : "s"}.`;
+          }
+
+          const estMinutes =
+            data && typeof data.estimatedDurationMinutes === "number"
+              ? data.estimatedDurationMinutes
+              : null;
+          if (!estMinutes) return "";
+          if (estMinutes < 1) return "Trip under 1 minute.";
+          if (estMinutes < 10) return `Estimated trip: ~${estMinutes.toFixed(1)} min.`;
+          return `Estimated trip: about ${Math.round(estMinutes)} min.`;
+        }
+
+      const DRIVER_PLACEHOLDERS = {
+        avatar:
+          'data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2216%22%20fill%3D%22%23020617%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2224%22%20r%3D%2212%22%20fill%3D%22%236b7280%22/%3E%3Cpath%20d%3D%22M12%2054c0-8.84%208.06-16%2020-16s20%207.16%2020%2016%22%20fill%3D%22%231e293b%22/%3E%3C/svg%3E',
+        vehicle:
+          'data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20width%3D%2296%22%20height%3D%2260%22%20viewBox%3D%220%200%2096%2060%22%3E%3Crect%20width%3D%2296%22%20height%3D%2260%22%20rx%3D%2214%22%20fill%3D%22%23020617%22/%3E%3Cpath%20d%3D%22M18%2042h60l5-16-9-10H30l-9%2010-3%2016z%22%20fill%3D%22%231e3a5f%22/%3E%3Ccircle%20cx%3D%2030%20cy%3D%2044%20r%3D%207%20fill%3D%22%23d1d5db%22/%3E%3Ccircle%20cx%3D%2066%20cy%3D%2044%20r%3D%207%20fill%3D%22%23d1d5db%22/%3E%3C/svg%3E',
+        license:
+          'data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20width%3D%2296%22%20height%3D%2260%22%20viewBox%3D%220%200%2096%2060%22%3E%3Crect%20width%3D%2296%22%20height%3D%2260%22%20rx%3D%2212%22%20fill%3D%22%23020617%22/%3E%3Crect%20x%3D%220%22%20y%3D%2212%22%20width%3D%2296%22%20height%3D%222%22%20fill%3D%22%230ea5e9%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2220%22%20width%3D%2226%22%20height%3D%2218%22%20rx%3D%224%22%20fill%3D%22%231e293b%22/%3E%3Crect%20x%3D%2246%22%20y%3D%2222%22%20width%3D%2236%22%20height%3D%224%22%20rx%3D%222%22%20fill%3D%22%233e4c68%22/%3E%3Crect%20x%3D%2246%22%20y%3D%2230%22%20width%3D%2232%22%20height%3D%224%22%20rx%3D%222%22%20fill%3D%22%233e4c68%22/%3E%3C/svg%3E'
+      };
+
+      function safeImageUrl(url, fallback) {
+        if (!url) return fallback;
+        try {
+          return encodeURI(url);
+        } catch (err) {
+          return fallback;
+        }
+      }
+
+      function formatLicenseText(data) {
+        const licenseNumber =
+          data?.driverLicenseNumber ||
+          data?.driverLicenseMasked ||
+          data?.licenseLastFour ||
+          data?.driverLicenseLastFour ||
+          "";
+        if (licenseNumber && typeof licenseNumber === "string" && licenseNumber.trim().length >= 4) {
+          return `Ending in ${licenseNumber.trim().slice(-4)}`;
+        }
+        if (data?.driverVerified || data?.driverLicensePhotoUrl) {
+          return "Verified with RideSync";
+        }
+        return "License info not available";
       }
 
       function renderDriverIdentity(data) {
@@ -1689,16 +1902,6 @@
             driverIdentityBadges.innerHTML = "";
             driverIdentityBadges.style.display = "none";
           }
-          if (driverIdentityDocs) {
-            driverIdentityDocs.innerHTML = "";
-            driverIdentityDocs.style.display = "none";
-          }
-          if (driverIdentityAvatar) {
-            driverIdentityAvatar.style.backgroundImage = "";
-            driverIdentityAvatar.textContent = "DR";
-          }
-          if (driverIdentityName) driverIdentityName.textContent = "";
-          if (driverIdentityPhone) driverIdentityPhone.textContent = "";
           return;
         }
 
@@ -1707,27 +1910,39 @@
           [data.driverFirstName, data.driverLastName].filter(Boolean).join(" ").trim() ||
           "Driver";
         const phone = data.driverPhone || data.driverEmail || "";
+        const initials = (displayName || "DR")
+          .split(" ")
+          .map((s) => s[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
 
         if (driverIdentityName) driverIdentityName.textContent = displayName;
-        if (driverIdentityPhone) driverIdentityPhone.textContent = phone;
+        if (driverIdentityPhone) driverIdentityPhone.textContent = phone || "Contact info coming soon";
 
-        if (driverIdentityAvatar) {
-          const avatarUrl = data.driverAvatarUrl || data.driverPhotoUrl || null;
-          driverIdentityAvatar.style.backgroundImage = "";
-          driverIdentityAvatar.textContent = "";
+        const ratingValue =
+          typeof data.driverRating === "number"
+            ? data.driverRating
+            : typeof data.driverStars === "number"
+            ? data.driverStars
+            : null;
+        const ratingText = ratingValue && !Number.isNaN(ratingValue) ? ratingValue.toFixed(1) : "4.9";
+        if (driverIdentityRating) {
+          driverIdentityRating.textContent = `★ ${ratingText}`;
+        }
+
+        const avatarUrl = safeImageUrl(data.driverAvatarUrl || data.driverPhotoUrl, null);
+        if (driverIdentityAvatarImg) {
           if (avatarUrl) {
-            const safeAvatarUrl = encodeURI(avatarUrl);
-            driverIdentityAvatar.style.backgroundImage = `url(${safeAvatarUrl})`;
-            driverIdentityAvatar.style.backgroundSize = "cover";
-            driverIdentityAvatar.style.backgroundPosition = "center";
+            driverIdentityAvatarImg.src = avatarUrl;
+            driverIdentityAvatarImg.style.display = "block";
+            if (driverIdentityAvatarFallback) driverIdentityAvatarFallback.style.display = "none";
           } else {
-            const initials = displayName
-              .split(" ")
-              .map((s) => s[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase();
-            driverIdentityAvatar.textContent = initials || "DR";
+            driverIdentityAvatarImg.style.display = "none";
+            if (driverIdentityAvatarFallback) {
+              driverIdentityAvatarFallback.textContent = initials || "DR";
+              driverIdentityAvatarFallback.style.display = "flex";
+            }
           }
         }
 
@@ -1747,26 +1962,34 @@
           }
         }
 
-        if (driverIdentityDocs) {
-          const docs = [];
-          if (data.driverLicensePhotoUrl) docs.push({ label: "License", url: data.driverLicensePhotoUrl });
-          if (data.driverVehiclePhotoUrl) docs.push({ label: "Vehicle", url: data.driverVehiclePhotoUrl });
-          const withUrls = docs.filter((doc) => !!doc.url);
-          if (withUrls.length) {
-            driverIdentityDocs.innerHTML = withUrls
-              .map((doc) => {
-                const safeUrl = encodeURI(doc.url);
-                return `<a href="${safeUrl}" target="_blank" rel="noopener" title="${doc.label}"><img src="${safeUrl}" alt="${doc.label}" /></a>`;
-              })
-              .join("");
-            driverIdentityDocs.style.display = "flex";
-          } else {
-            driverIdentityDocs.innerHTML = "";
-            driverIdentityDocs.style.display = "none";
-          }
+        if (driverVehiclePhoto) {
+          const vehicleSrc = safeImageUrl(data.driverVehiclePhotoUrl, DRIVER_PLACEHOLDERS.vehicle);
+          driverVehiclePhoto.src = vehicleSrc;
+        }
+        if (driverVehicleName) {
+          const vehicleParts = [
+            data.driverVehicleColor,
+            data.driverVehicleMake,
+            data.driverVehicleModel
+          ].filter(Boolean);
+          driverVehicleName.textContent =
+            vehicleParts.join(" ").trim() || "Vehicle details not available";
+        }
+        if (driverVehiclePlate) {
+          driverVehiclePlate.textContent = data.driverLicensePlate
+            ? `Plate: ${data.driverLicensePlate}`
+            : "Plate info not available";
         }
 
-        driverIdentityCard.style.display = "block";
+        if (driverLicensePhoto) {
+          const licenseSrc = safeImageUrl(data.driverLicensePhotoUrl, DRIVER_PLACEHOLDERS.license);
+          driverLicensePhoto.src = licenseSrc;
+        }
+        if (driverLicenseText) {
+          driverLicenseText.textContent = formatLicenseText(data);
+        }
+
+        driverIdentityCard.style.display = "flex";
       }
 
       function updateRiderOverlay(rideId, data) {
@@ -2348,15 +2571,71 @@
       }
     }
 
-      function trySetupAutocompleteEarly() {
-        if (!window.google || !google.maps || !google.maps.places) {
-          setTimeout(trySetupAutocompleteEarly, 800);
-          return;
-        }
-        setupDestinationAutocomplete();
-      }
+        const pwaToastEl = document.getElementById("pwaToast");
+        let toastTimer = null;
 
-      trySetupAutocompleteEarly();
+        function showToast(message, duration = 4000) {
+          if (!pwaToastEl) return;
+          pwaToastEl.textContent = message;
+          pwaToastEl.classList.add("visible");
+          if (toastTimer) clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => {
+            pwaToastEl.classList.remove("visible");
+          }, duration);
+        }
+
+        function registerRideSyncServiceWorker() {
+          if (!("serviceWorker" in navigator)) return;
+          let refreshing = false;
+
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
+          });
+
+          window.addEventListener("load", async () => {
+            try {
+              const registration = await navigator.serviceWorker.register("/ridesync-sw.js");
+              monitorSwUpdates(registration);
+            } catch (err) {
+              console.warn("Service worker registration failed", err);
+            }
+          });
+        }
+
+        function monitorSwUpdates(registration) {
+          if (!registration) return;
+          if (registration.waiting) {
+            notifySwUpdate(registration.waiting);
+          }
+          registration.addEventListener("updatefound", () => {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener("statechange", () => {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                notifySwUpdate(registration.waiting);
+              }
+            });
+          });
+        }
+
+        function notifySwUpdate(worker) {
+          if (!worker) return;
+          showToast("RideSync updated. Refreshing…", 2400);
+          worker.postMessage({ type: "SKIP_WAITING" });
+        }
+
+        function trySetupAutocompleteEarly() {
+          if (!window.google || !google.maps || !google.maps.places) {
+            setTimeout(trySetupAutocompleteEarly, 800);
+            return;
+          }
+          setupDestinationAutocomplete();
+        }
+
+        trySetupAutocompleteEarly();
+        registerRideSyncServiceWorker();
   </script>
 </body>
 </html>

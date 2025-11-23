@@ -1,0 +1,26 @@
+{
+  "name": "RideSync Rider",
+  "short_name": "RideSync",
+  "description": "RideSync Rider lets you request private or pooled rides around NWA and the University of Arkansas.",
+  "id": "/rider",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0ea5e9",
+  "background_color": "#010915",
+  "icons": [
+    {
+      "src": "/icons/ridesync-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/ridesync-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
