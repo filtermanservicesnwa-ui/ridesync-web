@@ -193,6 +193,58 @@
     .fare-value { color: #e5e7eb; }
     .fare-total { color: #bbf7d0; font-weight: 600; }
 
+    .section-card {
+      border-radius: 20px;
+      border: 1px solid var(--rs-border);
+      background: rgba(3,10,26,0.78);
+      padding: 14px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+    .booking-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .booking-grid-main,
+    .booking-grid-side {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .booking-grid-side {
+      position: relative;
+    }
+    .booking-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-heading {
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--rs-muted);
+      margin: 0 0 8px;
+    }
+    .muted {
+      color: var(--rs-muted);
+    }
+    @media (min-width: 720px) {
+      .booking-grid {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+      .booking-grid-main {
+        flex: 1.25 1 0;
+      }
+      .booking-grid-side {
+        flex: 0.75 1 0;
+        position: sticky;
+        top: 12px;
+      }
+    }
+
     .rider-mini-bar {
       position: fixed;
       top: 0;
@@ -759,64 +811,89 @@
         <div class="small" id="joinBannerText"></div>
       </div>
 
-      <div class="section-title">Pickup & map</div>
-      <div id="map"></div>
-
-      <div class="section-title">Destination</div>
-      <label for="destination">Where are you going?</label>
-      <input id="destination" type="text" placeholder="Enter destination address" />
-
-      <div class="section-title">Riders</div>
-      <div id="ridersSection">
-        <label for="numRiders">Number of riders</label>
-        <select id="numRiders">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-        </select>
-        <div class="small">
-          For U of A pooling, choose 1 rider. For private group rides with friends, choose 2–4 and use the QR.
-        </div>
-      </div>
-
-      <div class="section-title" id="poolGroupTitle" style="display:none;">
-        U of A pool group
-      </div>
-      <div id="poolGroupBox" class="fare-box" style="display:none;">
-        <div class="small" id="poolGroupStatus">
-          Searching for other U of A riders…
-        </div>
-        <div id="poolGroupList"></div>
-      </div>
-
-      <div class="section-title">Estimated fare</div>
-      <div class="fare-box">
-        <div id="fareNotReady" class="small">
-          Set a destination to see estimated time, distance, and total.
-        </div>
-        <div id="fareReady" style="display:none;">
-          <div class="fare-row">
-            <div class="fare-label">Time</div>
-            <div class="fare-value" id="fareTime"></div>
+      <div class="section-title">Plan your ride</div>
+      <div class="booking-grid">
+        <div class="booking-grid-main">
+          <div class="section-card">
+            <div class="card-heading">Pickup &amp; Map</div>
+            <div id="map"></div>
+            <p class="small muted" style="margin-top:6px;">
+              We drop the pin at your live GPS location. Drag it or search a new pickup if needed.
+            </p>
           </div>
-          <div class="fare-row">
-            <div class="fare-label">Distance</div>
-            <div class="fare-value" id="fareDistance"></div>
-          </div>
-          <div class="fare-row">
-            <div class="fare-label">Plan</div>
-            <div class="fare-value" id="fareMembership"></div>
-          </div>
-          <div class="fare-row">
-            <div class="fare-label">Total (incl. fees)</div>
-            <div class="fare-total" id="fareTotal"></div>
+          <div class="section-card">
+            <div class="card-heading">Destination</div>
+            <label for="destination">Where are you going?</label>
+            <input id="destination" type="text" placeholder="Enter destination address" />
+            <p class="small muted">
+              Include the full address or a well-known landmark so your driver can find you faster.
+            </p>
           </div>
         </div>
-      </div>
+        <div class="booking-grid-side">
+          <div class="section-card">
+            <div class="card-heading">Riders</div>
+            <div id="ridersSection">
+              <label for="numRiders">Number of riders</label>
+              <select id="numRiders">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+              <div class="small">
+                For U of A pooling, choose 1 rider. For private group rides with friends, choose 2–4 and share the join QR.
+              </div>
+            </div>
+          </div>
 
-      <button id="syncButton" class="btn-primary">Sync &amp; Pay</button>
-      <button id="logoutButton" class="btn-secondary">Log out</button>
+          <div class="section-card" id="poolGroupWrapper" style="display:none;">
+            <div class="card-heading" id="poolGroupTitle" style="display:none;">
+              U of A pool group
+            </div>
+            <div id="poolGroupBox" class="fare-box" style="display:none;">
+              <div class="small" id="poolGroupStatus">
+                Searching for other U of A riders…
+              </div>
+              <div id="poolGroupList"></div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="card-heading">Estimated fare</div>
+            <div class="fare-box">
+              <div id="fareNotReady" class="small">
+                Set a destination to see estimated time, distance, and total.
+              </div>
+              <div id="fareReady" style="display:none;">
+                <div class="fare-row">
+                  <div class="fare-label">Time</div>
+                  <div class="fare-value" id="fareTime"></div>
+                </div>
+                <div class="fare-row">
+                  <div class="fare-label">Distance</div>
+                  <div class="fare-value" id="fareDistance"></div>
+                </div>
+                <div class="fare-row">
+                  <div class="fare-label">Plan</div>
+                  <div class="fare-value" id="fareMembership"></div>
+                </div>
+                <div class="fare-row">
+                  <div class="fare-label">Total (incl. fees)</div>
+                  <div class="fare-total" id="fareTotal"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-card booking-cta-card">
+            <div class="booking-actions">
+              <button id="syncButton" class="btn-primary">Sync &amp; Pay</button>
+              <button id="logoutButton" class="btn-secondary">Log out</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- LOADING VIEW -->
@@ -1098,6 +1175,7 @@
     const joinBanner = document.getElementById("joinBanner");
     const joinBannerText = document.getElementById("joinBannerText");
 
+    const poolGroupWrapper = document.getElementById("poolGroupWrapper");
     const poolGroupTitle = document.getElementById("poolGroupTitle");
     const poolGroupBox = document.getElementById("poolGroupBox");
     const poolGroupStatus = document.getElementById("poolGroupStatus");
@@ -1789,6 +1867,7 @@
     }
 
     function clearPoolGroupUI() {
+      if (poolGroupWrapper) poolGroupWrapper.style.display = "none";
       poolGroupTitle.style.display = "none";
       poolGroupBox.style.display = "none";
       poolGroupStatus.textContent = "";
@@ -1796,6 +1875,8 @@
     }
 
     function renderPoolGroup(riders) {
+      if (poolGroupWrapper) poolGroupWrapper.style.display = "block";
+
       if (!riders || riders.length === 0) {
         poolGroupTitle.style.display = "block";
         poolGroupBox.style.display = "block";
