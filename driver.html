@@ -15,6 +15,8 @@
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDlYSl5rfovahECuBSbkELw2uyC6-Ucmr0"></script>
   <!-- QR code library for boarding / dropoff codes -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <!-- QR scanner for pickup/dropoff verification -->
+  <script defer src="https://unpkg.com/html5-qrcode@2.3.9/html5-qrcode.min.js"></script>
 
     <style>
       :root {
@@ -78,6 +80,17 @@
       font-size: 0.9rem;
       margin-bottom: 8px;
     }
+    textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #f9fafb;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      resize: vertical;
+    }
     input:focus {
       outline: 2px solid #2563eb;
       outline-offset: 1px;
@@ -94,6 +107,10 @@
       }
       button:active {
         transform: scale(0.97);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
       }
       .btn-primary {
         background: linear-gradient(120deg, var(--rs-accent), var(--rs-accent-soft));
@@ -340,6 +357,64 @@
     }
     #activeRideInfo { font-size:0.78rem; color:#e5e7eb; margin-bottom:6px; }
     #activeRideError { color:#fecaca; font-size:0.78rem; min-height:18px; }
+    .ride-status-label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin: 4px 0;
+      color: #bae6fd;
+    }
+    .driver-qr-scanner {
+      border: 1px dashed rgba(148,163,184,0.5);
+      border-radius: 18px;
+      padding: 12px;
+      margin: 10px 0;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(2,6,23,0.7);
+    }
+    #driverQrScanner {
+      width: 100%;
+      min-height: 240px;
+      border-radius: 12px;
+      background: rgba(15,23,42,0.6);
+    }
+    .qr-scanner-status {
+      font-size: 0.75rem;
+      color: #fef3c7;
+      text-align: center;
+    }
+    .geo-status {
+      font-size: 0.78rem;
+      color: #fcd34d;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+      padding: 16px;
+    }
+    .modal-card {
+      background: rgba(15,23,42,0.95);
+      border: 1px solid var(--rs-border);
+      border-radius: 22px;
+      width: 100%;
+      max-width: 420px;
+      padding: 18px;
+      box-shadow: var(--rs-shadow);
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
 
     .pill {
       display:inline-flex;
@@ -516,7 +591,7 @@
       <div class="section-title">Available rides</div>
       <div id="ridesList"></div>
       <div class="small" id="ridesHint">
-        Rides with no driver and status pending/pooled will appear here while you are online.
+        Rides with no driver and status pending will appear here while you are online.
       </div>
     </div>
 
@@ -533,45 +608,48 @@
       <div id="activeRideMap"></div>
       <div id="activeRideInfo"></div>
 
-      <div class="section-title">Ride controls</div>
+      <div class="ride-status-label" id="activeRideStatusLabel"></div>
+      <div id="activeRideInstructions" class="small" style="margin-bottom:8px;"></div>
 
-      <button id="markArrivedButton" class="btn-secondary" style="margin-top:4px;">
-        Mark arrived at pickup
-      </button>
+      <div id="qrScannerContainer" class="driver-qr-scanner">
+        <div id="driverQrScanner"></div>
+        <div id="qrScannerStatus" class="qr-scanner-status"></div>
+        <button id="stopScannerButton" class="btn-ghost btn-small" type="button" style="align-self:center;">
+          Stop scanner
+        </button>
+      </div>
 
-      <!-- Boarding QR (pickup) -->
-      <button id="showBoardingQrButton" class="btn-secondary" style="margin-top:4px;">
-        Show boarding QR
-      </button>
-      <canvas
-        id="boardingQrCanvas"
-        width="140"
-        height="140"
-        style="margin-top:6px; display:none;"
-      ></canvas>
+      <div id="geofenceStatus" class="geo-status"></div>
 
-      <!-- Dropoff QR -->
-      <button id="showDropoffQrButton" class="btn-secondary" style="margin-top:4px;">
-        Show dropoff QR
-      </button>
-      <canvas
-        id="dropoffQrCanvas"
-        width="140"
-        height="140"
-        style="margin-top:6px; display:none;"
-      ></canvas>
-
-      <button id="startTripButton" class="btn-secondary" style="margin-top:4px;">
-        Start trip
-      </button>
-      <button id="completeTripButton" class="btn-primary" style="margin-top:4px;">
-        Complete trip
-      </button>
-        <button id="driverCancelButton" class="btn-danger" style="margin-top:4px;">
+      <div class="control-buttons" style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+        <button id="markArrivedButton" class="btn-secondary">
+          Mark arrived at pickup
+        </button>
+        <button id="startTripButton" class="btn-secondary">
+          Start trip
+        </button>
+        <button id="completeTripButton" class="btn-primary">
+          Complete trip
+        </button>
+        <button id="driverCancelButton" class="btn-danger">
           Cancel ride
         </button>
+      </div>
 
       <div id="activeRideError" class="error"></div>
+    </div>
+  </div>
+
+  <div id="driverCancelModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <h3>Cancel ride</h3>
+      <p class="small" style="margin-bottom:8px;">Provide a reason so the rider understands what happened.</p>
+      <textarea id="driverCancelReasonInput" rows="4" placeholder="Enter cancellation reason"></textarea>
+      <div class="modal-actions">
+        <button id="driverCancelConfirm" class="btn-danger" type="button">Submit cancellation</button>
+        <button id="driverCancelDismiss" class="btn-secondary" type="button">Keep ride</button>
+      </div>
+      <div id="driverCancelError" class="error"></div>
     </div>
   </div>
 
@@ -620,6 +698,29 @@
       const auth = getAuth(app);
       const db = getFirestore(app);
       const storage = getStorage(app);
+
+    const RIDE_STATUS = {
+      PENDING: "PENDING",
+      ACCEPTED: "ACCEPTED",
+      ARRIVED_AT_PICKUP: "ARRIVED_AT_PICKUP",
+      IN_PROGRESS: "IN_PROGRESS",
+      ARRIVED_AT_DROPOFF: "ARRIVED_AT_DROPOFF",
+      COMPLETED: "COMPLETED",
+      CANCELLED: "CANCELLED"
+    };
+    const QR_PAYLOAD = {
+      PICKUP_PREFIX: "pickup:",
+      DROPOFF_PREFIX: "dropoff:"
+    };
+    const DROPOFF_GEOFENCE_MILES = 0.1;
+    const STATUS_TIMESTAMP_FIELDS = {
+      [RIDE_STATUS.ACCEPTED]: "acceptedAt",
+      [RIDE_STATUS.ARRIVED_AT_PICKUP]: "arrivedAtPickupAt",
+      [RIDE_STATUS.IN_PROGRESS]: "tripStartedAt",
+      [RIDE_STATUS.ARRIVED_AT_DROPOFF]: "arrivedAtDropoffAt",
+      [RIDE_STATUS.COMPLETED]: "completedAt",
+      [RIDE_STATUS.CANCELLED]: "cancelledAt"
+    };
 
     const authView = document.getElementById("authView");
     const driverView = document.getElementById("driverView");
@@ -672,11 +773,18 @@
     const startTripButton = document.getElementById("startTripButton");
     const completeTripButton = document.getElementById("completeTripButton");
     const driverCancelButton = document.getElementById("driverCancelButton");
-
-    const showBoardingQrButton = document.getElementById("showBoardingQrButton");
-    const showDropoffQrButton = document.getElementById("showDropoffQrButton");
-    const boardingQrCanvas = document.getElementById("boardingQrCanvas");
-    const dropoffQrCanvas = document.getElementById("dropoffQrCanvas");
+    const activeRideStatusLabel = document.getElementById("activeRideStatusLabel");
+    const activeRideInstructions = document.getElementById("activeRideInstructions");
+    const qrScannerContainer = document.getElementById("qrScannerContainer");
+    const driverQrScannerEl = document.getElementById("driverQrScanner");
+    const qrScannerStatus = document.getElementById("qrScannerStatus");
+    const stopScannerButton = document.getElementById("stopScannerButton");
+    const geofenceStatusEl = document.getElementById("geofenceStatus");
+    const driverCancelModal = document.getElementById("driverCancelModal");
+    const driverCancelReasonInput = document.getElementById("driverCancelReasonInput");
+    const driverCancelConfirm = document.getElementById("driverCancelConfirm");
+    const driverCancelDismiss = document.getElementById("driverCancelDismiss");
+    const driverCancelError = document.getElementById("driverCancelError");
 
     let currentUser = null;
     let currentDriverProfile = null;
@@ -693,9 +801,14 @@
       let activeRideDirectionsService;
       let activeRideDirectionsRenderer;
       let activeRideDriverMarker = null;
-
-    let boardingQr = null;
-    let dropoffQr = null;
+    let activeRideDocUnsubs = [];
+    let activeRideStatus = null;
+    let activeRideCheckInVerified = false;
+    let activeRideDestination = null;
+    let qrScanner = null;
+    let qrScannerActive = false;
+    let qrScannerStage = null;
+    let canCompleteTrip = false;
 
       function getDriverDisplayName(profile, fallbackEmail = "") {
         if (!profile) return fallbackEmail || "Driver";
@@ -727,9 +840,12 @@
       function renderDriverDocPreview(profile) {
         if (!driverDocPreview) return;
         const docs = [];
-        if (profile?.profilePicUrl) docs.push({ label: "Avatar", url: profile.profilePicUrl });
-        if (profile?.licensePhotoUrl) docs.push({ label: "License", url: profile.licensePhotoUrl });
-        if (profile?.vehiclePhotoUrl) docs.push({ label: "Vehicle", url: profile.vehiclePhotoUrl });
+        const avatar = profile?.avatarUrl || profile?.profilePicUrl;
+        const license = profile?.licenseImageUrl || profile?.licensePhotoUrl;
+        const vehicle = profile?.carImageUrl || profile?.vehiclePhotoUrl;
+        if (avatar) docs.push({ label: "Avatar", url: avatar });
+        if (license) docs.push({ label: "License", url: license });
+        if (vehicle) docs.push({ label: "Vehicle", url: vehicle });
         if (!docs.length) {
           driverDocPreview.innerHTML = '<div class="small">No documents uploaded yet.</div>';
           return;
@@ -827,9 +943,18 @@
           const licenseUrl = await uploadDriverFile(driverLicenseInput, `drivers/${currentUser.uid}/license.jpg`);
           const vehicleUrl = await uploadDriverFile(driverVehicleInput, `drivers/${currentUser.uid}/vehicle.jpg`);
 
-          if (avatarUrl) updates.profilePicUrl = avatarUrl;
-          if (licenseUrl) updates.licensePhotoUrl = licenseUrl;
-          if (vehicleUrl) updates.vehiclePhotoUrl = vehicleUrl;
+          if (avatarUrl) {
+            updates.profilePicUrl = avatarUrl;
+            updates.avatarUrl = avatarUrl;
+          }
+          if (licenseUrl) {
+            updates.licensePhotoUrl = licenseUrl;
+            updates.licenseImageUrl = licenseUrl;
+          }
+          if (vehicleUrl) {
+            updates.vehiclePhotoUrl = vehicleUrl;
+            updates.carImageUrl = vehicleUrl;
+          }
 
           await setDoc(doc(db, "drivers", currentUser.uid), updates, { merge: true });
           await loadDriverProfile();
@@ -897,8 +1022,15 @@
           ridesUnsub();
           ridesUnsub = null;
         }
+            stopQrScanner();
             resetActiveRideRoute();
+            activeRideOverlay.classList.remove("active");
+            activeRideDocUnsubs.forEach((fn) => fn());
+            activeRideDocUnsubs = [];
             activeRideGroup = [];
+            activeRideStatus = null;
+            activeRideDestination = null;
+            activeRideCheckInVerified = false;
             if (driverLocationWatchId != null && navigator.geolocation) {
               navigator.geolocation.clearWatch(driverLocationWatchId);
               driverLocationWatchId = null;
@@ -963,7 +1095,7 @@
             .filter((part) => !!part && part.trim());
           driverDetailEl.textContent = detailParts.join(" • ");
 
-            updateDriverAvatar(displayName, currentDriverProfile.profilePicUrl);
+            updateDriverAvatar(displayName, currentDriverProfile.avatarUrl || currentDriverProfile.profilePicUrl);
 
           populateDriverForm(currentDriverProfile);
           renderDriverBadges(currentDriverProfile);
@@ -988,21 +1120,18 @@
             const loc = { lat: latitude, lng: longitude };
               driverCurrentLocation = loc;
               map.setCenter(loc);
-              if (!driverMarker) {
-                driverMarker = new google.maps.Marker({
-                  map,
-                  position: loc,
-                  title: "You"
-                });
-              } else {
-                driverMarker.setPosition(loc);
-              }
-              if (isActiveRideOverlayVisible()) {
-                const pickup = getPrimaryPickupLatLng();
-                if (pickup) {
-                  renderPickupRoute(loc, pickup);
+                if (!driverMarker) {
+                  driverMarker = new google.maps.Marker({
+                    map,
+                    position: loc,
+                    title: "You"
+                  });
+                } else {
+                  driverMarker.setPosition(loc);
                 }
-              }
+                if (isActiveRideOverlayVisible()) {
+                  updateActiveRideRoute();
+                }
           },
           () => {}
         );
@@ -1016,11 +1145,9 @@
                 driverMarker.setPosition(driverCurrentLocation);
               }
               if (isActiveRideOverlayVisible()) {
-                const pickup = getPrimaryPickupLatLng();
-                if (pickup) {
-                  renderPickupRoute(driverCurrentLocation, pickup);
-                }
+                updateActiveRideRoute();
               }
+              updateCompleteButtonState();
             },
             (err) => {
               console.warn("Driver location watch error", err);
@@ -1107,13 +1234,12 @@
 
     function renderRides(allRides) {
       ridesList.innerHTML = "";
-      const allowedStatuses = ["pending_driver", "pool_searching", "pooled_pending_driver", "pending"];
 
       const visible = allRides.filter((r) => {
         if (!isOnline) return false;
         if (r.driverId) return false;
-        const st = r.status || "pending";
-        return allowedStatuses.includes(st);
+        const st = r.status || RIDE_STATUS.PENDING;
+        return st === RIDE_STATUS.PENDING;
       });
 
       if (!visible.length) {
@@ -1124,7 +1250,7 @@
       visible.forEach((r) => {
         const div = document.createElement("div");
         div.className = "ride-card";
-        const st = r.status || "pending";
+        const statusLabel = formatRideStatusLabel(r.status || RIDE_STATUS.PENDING);
 
         const isPool = !!r.isGroupRide || !!r.groupId;
         const tags = [];
@@ -1135,7 +1261,7 @@
         div.innerHTML = `
           <div class="ride-header">
             <span>${r.riderName || "Rider"}</span>
-            <span>${st}</span>
+            <span>${statusLabel}</span>
           </div>
           <div class="ride-line">${tags.join(" ")}</div>
           <div class="ride-line ride-meta">
@@ -1199,9 +1325,10 @@
         groupRides.forEach((r) => {
           const ref = doc(db, "rideRequests", r.id);
           batch.update(ref, {
-            status: "driver_declined",
+            status: RIDE_STATUS.PENDING,
             driverId: null,
-            driverDeclinedAt: serverTimestamp()
+            driverDeclinedAt: serverTimestamp(),
+            declinedByDriverId: currentUser.uid
           });
         });
 
@@ -1246,6 +1373,10 @@
           currentDriverProfile = { ...currentDriverProfile, ...driverSnap.data() };
         }
 
+        const avatarUrl = currentDriverProfile?.avatarUrl || currentDriverProfile?.profilePicUrl || null;
+        const licenseImageUrl = currentDriverProfile?.licenseImageUrl || currentDriverProfile?.licensePhotoUrl || null;
+        const carImageUrl = currentDriverProfile?.carImageUrl || currentDriverProfile?.vehiclePhotoUrl || null;
+
         const driverInfo = {
           driverId: currentUser.uid,
           driverEmail: currentUser.email || "",
@@ -1256,10 +1387,12 @@
             driverFirstName: currentDriverProfile?.firstName || "",
             driverLastName: currentDriverProfile?.lastName || "",
             driverPhone: currentDriverProfile?.phone || "",
-            driverPhotoUrl: currentDriverProfile?.profilePicUrl || null,
-            driverAvatarUrl: currentDriverProfile?.profilePicUrl || null,
-            driverLicensePhotoUrl: currentDriverProfile?.licensePhotoUrl || null,
-            driverVehiclePhotoUrl: currentDriverProfile?.vehiclePhotoUrl || null,
+            driverPhotoUrl: avatarUrl,
+            driverAvatarUrl: avatarUrl,
+            driverLicensePhotoUrl: licenseImageUrl,
+            driverLicenseImageUrl: licenseImageUrl,
+            driverVehiclePhotoUrl: carImageUrl,
+            driverCarImageUrl: carImageUrl,
             driverVerified: !!currentDriverProfile?.isVerified,
             driverDrugTestCleared: !!currentDriverProfile?.passedDrugTest,
             driverBackgroundCheckCleared: !!currentDriverProfile?.passedBackgroundCheck,
@@ -1267,8 +1400,10 @@
           driverVehicleModel: currentDriverProfile?.vehicleModel || "",
           driverVehicleColor: currentDriverProfile?.vehicleColor || "",
           driverLicensePlate: currentDriverProfile?.licensePlate || "",
-          status: "driver_assigned",
-          assignedAt: serverTimestamp()
+          status: RIDE_STATUS.ACCEPTED,
+          acceptedAt: serverTimestamp(),
+          checkInVerified: false,
+          checkOutVerified: false
         };
 
         groupRides.forEach((r) => {
@@ -1284,6 +1419,7 @@
           ...r,
           ...driverInfo
         }));
+        subscribeToActiveRideDocs(activeRideGroup);
         openActiveRideOverlay();
       } catch (err) {
         console.error("acceptRide error", err);
@@ -1295,42 +1431,44 @@
       if (!activeRideGroup.length) return;
       activeRideOverlay.classList.add("active");
       activeRideError.textContent = "";
+      stopQrScanner();
+      renderPickupMarkers();
+      refreshActiveRideUi();
+    }
 
-      const isPooled = activeRideGroup.length > 1;
-      const primary = activeRideGroup[0];
+    function subscribeToActiveRideDocs(rides) {
+      activeRideDocUnsubs.forEach((fn) => fn());
+      activeRideDocUnsubs = [];
+      rides.forEach((ride) => {
+        const rideRef = doc(db, "rideRequests", ride.id);
+        const unsub = onSnapshot(
+          rideRef,
+          (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.data();
+            activeRideGroup = activeRideGroup.map((r) =>
+              r.id === ride.id ? { ...r, ...data } : r
+            );
+            if (data.status === RIDE_STATUS.CANCELLED) {
+              finishActiveRide("Ride canceled by rider.");
+              return;
+            }
+            if (data.status === RIDE_STATUS.COMPLETED && activeRideStatus !== RIDE_STATUS.COMPLETED) {
+              finishActiveRide("Ride already completed.");
+              return;
+            }
+            refreshActiveRideUi();
+          },
+          (err) => {
+            console.warn("Active ride snapshot error", err);
+          }
+        );
+        activeRideDocUnsubs.push(unsub);
+      });
+    }
 
-      activeRideTitle.textContent = isPooled
-        ? `Pool ride (${activeRideGroup.length} riders)`
-        : "Single ride";
-
-      activeRideTag.textContent = primary.toDestination || primary.toAddress || "Destination unknown";
-
-      const ridersInfo = activeRideGroup
-        .map((r, idx) => {
-          const name = r.riderName || `Rider ${idx + 1}`;
-          const phone = r.riderPhone || "";
-          const membership = r.membershipType || r.membership || "Unknown";
-          const gender = r.gender || "";
-          const fromLoc = r.fromLocation;
-          const pickupStr =
-            fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number"
-              ? `(${fromLoc.lat.toFixed(4)}, ${fromLoc.lng.toFixed(4)})`
-              : "(no pickup coords)";
-
-          return [
-            `<strong>${name}</strong>`,
-            phone ? `Phone: ${phone}` : "",
-            `Membership: ${membership}`,
-            gender ? `Gender: ${gender}` : "",
-            `Pickup: ${pickupStr}`
-          ]
-            .filter(Boolean)
-            .join(" • ");
-        })
-        .join("<br/>");
-
-      activeRideInfo.innerHTML = ridersInfo;
-
+    function renderPickupMarkers() {
+      if (!activeRideGroup.length) return;
       if (!activeRideMapObj) {
         activeRideMapObj = new google.maps.Map(document.getElementById("activeRideMap"), {
           center: { lat: 36.0626, lng: -94.1574 },
@@ -1340,9 +1478,7 @@
       }
       activeRideMarkers.forEach((m) => m.setMap(null));
       activeRideMarkers = [];
-
       const bounds = new google.maps.LatLngBounds();
-
       activeRideGroup.forEach((r, idx) => {
         const fromLoc = r.fromLocation;
         if (fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number") {
@@ -1357,31 +1493,36 @@
           bounds.extend(pos);
         }
       });
-
       if (!bounds.isEmpty()) {
         activeRideMapObj.fitBounds(bounds);
       }
-
-        const pickup = getPrimaryPickupLatLng();
-        if (driverCurrentLocation && pickup) {
-          renderPickupRoute(driverCurrentLocation, pickup);
-        }
     }
 
       function isActiveRideOverlayVisible() {
         return activeRideOverlay && activeRideOverlay.classList.contains("active");
       }
 
-      function getPrimaryPickupLatLng() {
-        if (!activeRideGroup.length) return null;
-        const fromLoc = activeRideGroup[0].fromLocation;
-        if (fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number") {
-          return { lat: fromLoc.lat, lng: fromLoc.lng };
-        }
-        return null;
+    function getPrimaryPickupLatLng() {
+      const primary = getPrimaryRide();
+      if (!primary) return null;
+      const fromLoc = primary.fromLocation;
+      if (fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number") {
+        return { lat: fromLoc.lat, lng: fromLoc.lng };
       }
+      return null;
+    }
 
-      function renderPickupRoute(origin, destination) {
+    function getPrimaryDestinationLatLng() {
+      const primary = getPrimaryRide();
+      if (!primary) return null;
+      const dest = primary.toLocation;
+      if (dest && typeof dest.lat === "number" && typeof dest.lng === "number") {
+        return { lat: dest.lat, lng: dest.lng };
+      }
+      return null;
+    }
+
+    function renderRoute(origin, destination) {
         if (!origin || !destination) return;
         if (!activeRideMapObj) return;
         if (!activeRideDirectionsService) {
@@ -1447,120 +1588,386 @@
         }
       }
 
-      function launchNavigationToPickup() {
-        const pickup = getPrimaryPickupLatLng();
-        if (!pickup) {
-          activeRideError.textContent = "Pickup location unavailable for navigation.";
-          return;
-        }
-
-        const openExternalMaps = (origin) => {
-          const destinationParam = `${pickup.lat},${pickup.lng}`;
-          const originParam = origin ? `${origin.lat},${origin.lng}` : "";
-          const mapsUrl = origin
-            ? `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${destinationParam}&travelmode=driving`
-            : `https://www.google.com/maps/dir/?api=1&destination=${destinationParam}&travelmode=driving`;
-          window.open(mapsUrl, "_blank", "noopener");
-        };
-
-        if (driverCurrentLocation) {
-          renderPickupRoute(driverCurrentLocation, pickup);
-          openExternalMaps(driverCurrentLocation);
-          return;
-        }
-
-        if (!navigator.geolocation) {
-          activeRideError.textContent = "Unable to access GPS. Opening navigation without origin.";
-          openExternalMaps(null);
-          return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const origin = {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude
-            };
-            driverCurrentLocation = origin;
-            renderPickupRoute(origin, pickup);
-            openExternalMaps(origin);
-          },
-          (err) => {
-            console.warn("Navigation geolocation error", err);
-            activeRideError.textContent = "Couldn't get your GPS. Opening navigation without origin.";
-            openExternalMaps(null);
-          },
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
-        );
+    function updateActiveRideRoute() {
+      if (!activeRideMapObj) return;
+      const pickup = getPrimaryPickupLatLng();
+      if (!pickup) return;
+      const destination = activeRideDestination || getPrimaryDestinationLatLng();
+      if (
+        (activeRideStatus === RIDE_STATUS.IN_PROGRESS ||
+          activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF) &&
+        destination
+      ) {
+        renderRoute(driverCurrentLocation || pickup, destination);
+      } else {
+        renderRoute(driverCurrentLocation || pickup, pickup);
       }
+    }
+
+    function launchNavigationTo(target) {
+      if (!target) {
+        activeRideError.textContent = "Destination unavailable for navigation.";
+        return;
+      }
+
+      const openExternalMaps = (origin) => {
+        const destinationParam = `${target.lat},${target.lng}`;
+        const originParam = origin ? `${origin.lat},${origin.lng}` : "";
+        const mapsUrl = origin
+          ? `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${destinationParam}&travelmode=driving`
+          : `https://www.google.com/maps/dir/?api=1&destination=${destinationParam}&travelmode=driving`;
+        window.open(mapsUrl, "_blank", "noopener");
+      };
+
+      if (driverCurrentLocation) {
+        renderRoute(driverCurrentLocation, target);
+        openExternalMaps(driverCurrentLocation);
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        activeRideError.textContent = "Unable to access GPS. Opening navigation without origin.";
+        openExternalMaps(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const origin = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
+          driverCurrentLocation = origin;
+          renderRoute(origin, target);
+          openExternalMaps(origin);
+        },
+        (err) => {
+          console.warn("Navigation geolocation error", err);
+          activeRideError.textContent = "Couldn't get your GPS. Opening navigation without origin.";
+          openExternalMaps(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+      );
+    }
+
+    function getPrimaryRide() {
+      return activeRideGroup.length ? activeRideGroup[0] : null;
+    }
 
     function getPrimaryRideId() {
-      if (!activeRideGroup.length) return null;
-      return activeRideGroup[0].id;
+      const primary = getPrimaryRide();
+      return primary ? primary.id : null;
     }
 
-    function showBoardingQr() {
-      const rideId = getPrimaryRideId();
-      if (!rideId || !boardingQrCanvas) return;
-
-      const url = `${window.location.origin}/rider.html?checkin=start&ride=${encodeURIComponent(
-        rideId
-      )}`;
-
-      boardingQrCanvas.style.display = "block";
-
-      if (!boardingQr) {
-        boardingQr = new QRious({
-          element: boardingQrCanvas,
-          size: 140,
-          value: url
-        });
-      } else {
-        boardingQr.set({ value: url });
-      }
-    }
-
-    function showDropoffQr() {
-      const rideId = getPrimaryRideId();
-      if (!rideId || !dropoffQrCanvas) return;
-
-      const url = `${window.location.origin}/rider.html?checkin=dropoff&ride=${encodeURIComponent(
-        rideId
-      )}`;
-
-      dropoffQrCanvas.style.display = "block";
-
-      if (!dropoffQr) {
-        dropoffQr = new QRious({
-          element: dropoffQrCanvas,
-          size: 140,
-          value: url
-        });
-      } else {
-        dropoffQr.set({ value: url });
-      }
-    }
-
-    async function updateActiveRideStatus(newStatus) {
+    async function updateActiveRideStatus(newStatus, extraFields = {}) {
       if (!activeRideGroup.length) return;
       activeRideError.textContent = "";
       try {
         const batch = writeBatch(db);
+        const updates = {
+          status: newStatus,
+          ...extraFields
+        };
+        const tsField = STATUS_TIMESTAMP_FIELDS[newStatus];
+        if (tsField) {
+          updates[tsField] = serverTimestamp();
+        }
         activeRideGroup.forEach((r) => {
           const ref = doc(db, "rideRequests", r.id);
-          batch.update(ref, {
-            status: newStatus,
-            [`${newStatus}At`]: serverTimestamp()
-          });
+          batch.update(ref, updates);
         });
         await batch.commit();
+        applyUpdatesToActiveRides({ status: newStatus, ...extraFields });
+        activeRideStatus = newStatus;
+        refreshActiveRideUi();
       } catch (err) {
         console.error("updateActiveRideStatus error", err);
         activeRideError.textContent = err.message || "Error updating ride status.";
       }
     }
 
-    async function cancelActiveRideAsDriver() {
+    async function updateActiveRideFields(extraFields = {}) {
+      if (!activeRideGroup.length) return;
+      activeRideError.textContent = "";
+      try {
+        const batch = writeBatch(db);
+        activeRideGroup.forEach((r) => {
+          const ref = doc(db, "rideRequests", r.id);
+          batch.update(ref, extraFields);
+        });
+        await batch.commit();
+        applyUpdatesToActiveRides(extraFields);
+        refreshActiveRideUi();
+      } catch (err) {
+        console.error("updateActiveRideFields error", err);
+        activeRideError.textContent = err.message || "Error updating ride.";
+      }
+    }
+
+    function applyUpdatesToActiveRides(updates) {
+      activeRideGroup = activeRideGroup.map((ride) => ({ ...ride, ...updates }));
+      if (Object.prototype.hasOwnProperty.call(updates, "checkInVerified")) {
+        activeRideCheckInVerified = !!updates.checkInVerified;
+      }
+      if (updates.toLocation) {
+        activeRideDestination = updates.toLocation;
+      }
+    }
+
+    function formatRideStatusLabel(status) {
+      if (!status) return "";
+      return status
+        .toLowerCase()
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    function buildActiveRideInfo() {
+      if (!activeRideGroup.length) return "";
+      return activeRideGroup
+        .map((r, idx) => {
+          const name = r.riderName || `Rider ${idx + 1}`;
+          const phone = r.riderPhone || "";
+          const membership = r.membershipType || r.membership || "Unknown";
+          const gender = r.gender || "";
+          const fromLoc = r.fromLocation;
+          const pickupStr =
+            fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number"
+              ? `Pickup: ${fromLoc.lat.toFixed(4)}, ${fromLoc.lng.toFixed(4)}`
+              : "";
+          return [
+            `<strong>${name}</strong>`,
+            phone ? `Phone: ${phone}` : "",
+            `Membership: ${membership}`,
+            gender ? `Gender: ${gender}` : "",
+            pickupStr
+          ]
+            .filter(Boolean)
+            .join(" • ");
+        })
+        .join("<br/>");
+    }
+
+    function ensureScannerForStage(stage) {
+      if (!stage) {
+        stopQrScanner();
+        return;
+      }
+      if (qrScannerStage === stage && qrScannerActive) return;
+      startQrScanner(stage);
+    }
+
+    function refreshActiveRideUi() {
+      const primary = getPrimaryRide();
+      if (!primary) return;
+      activeRideError.textContent = "";
+      activeRideStatus = primary.status || RIDE_STATUS.PENDING;
+      activeRideCheckInVerified = !!primary.checkInVerified;
+      if (primary.toLocation) {
+        activeRideDestination = primary.toLocation;
+      }
+
+      const isPooled = activeRideGroup.length > 1;
+      activeRideTitle.textContent = isPooled
+        ? `Pool ride (${activeRideGroup.length} riders)`
+        : "Single ride";
+      activeRideTag.textContent =
+        primary.toDestination || primary.toAddress || "Destination unknown";
+      if (activeRideStatusLabel) {
+        activeRideStatusLabel.textContent = `Status: ${formatRideStatusLabel(activeRideStatus)}`;
+      }
+      if (activeRideInstructions) {
+        activeRideInstructions.textContent = {
+          [RIDE_STATUS.ACCEPTED]: 'Navigate to pickup. Tap "Mark arrived" when you reach the rider.',
+          [RIDE_STATUS.ARRIVED_AT_PICKUP]: activeRideCheckInVerified
+            ? "Pickup confirmed. Start the trip when everyone is on board."
+            : "Scan the rider's pickup QR to unlock Start Trip.",
+          [RIDE_STATUS.IN_PROGRESS]: "Drive to the destination. Complete trip once you're at the dropoff zone.",
+          [RIDE_STATUS.ARRIVED_AT_DROPOFF]: "Scan the rider's dropoff QR to finish the trip.",
+          [RIDE_STATUS.COMPLETED]: "Trip completed.",
+          [RIDE_STATUS.CANCELLED]: "Trip cancelled."
+        }[activeRideStatus] || "";
+      }
+      if (activeRideInfo) {
+        activeRideInfo.innerHTML = buildActiveRideInfo();
+      }
+
+      markArrivedButton.style.display =
+        activeRideStatus === RIDE_STATUS.ACCEPTED ? "block" : "none";
+      startTripButton.style.display =
+        activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP ? "block" : "none";
+      startTripButton.disabled = !activeRideCheckInVerified;
+      completeTripButton.style.display =
+        activeRideStatus === RIDE_STATUS.IN_PROGRESS ? "block" : "none";
+
+      driverCancelButton.style.display =
+        activeRideStatus === RIDE_STATUS.COMPLETED || activeRideStatus === RIDE_STATUS.CANCELLED
+          ? "none"
+          : "block";
+
+      if (
+        activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP &&
+        !activeRideCheckInVerified
+      ) {
+        ensureScannerForStage("pickup");
+      } else if (activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF) {
+        ensureScannerForStage("dropoff");
+      } else if (qrScannerActive) {
+        stopQrScanner();
+      }
+
+      if (
+        activeRideStatus !== RIDE_STATUS.IN_PROGRESS &&
+        activeRideStatus !== RIDE_STATUS.ARRIVED_AT_DROPOFF
+      ) {
+        geofenceStatusEl.textContent = "";
+        canCompleteTrip = false;
+      }
+
+      updateActiveRideRoute();
+      updateCompleteButtonState();
+    }
+
+    function distanceMiles(a, b) {
+      if (!a || !b) return Infinity;
+      const toRad = (v) => (v * Math.PI) / 180;
+      const R = 3958.8;
+      const dLat = toRad(b.lat - a.lat);
+      const dLon = toRad(b.lng - a.lng);
+      const lat1 = toRad(a.lat);
+      const lat2 = toRad(b.lat);
+      const hav =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.atan2(Math.sqrt(hav), Math.sqrt(1 - hav));
+    }
+
+    function updateCompleteButtonState() {
+      if (!completeTripButton) return;
+      if (activeRideStatus !== RIDE_STATUS.IN_PROGRESS) {
+        canCompleteTrip = false;
+        completeTripButton.disabled = true;
+        geofenceStatusEl.textContent = "";
+        return;
+      }
+      const destination = activeRideDestination || getPrimaryDestinationLatLng();
+      if (!destination || !driverCurrentLocation) {
+        canCompleteTrip = false;
+        completeTripButton.disabled = true;
+        geofenceStatusEl.textContent = "Waiting for GPS or destination...";
+        return;
+      }
+      const distance = distanceMiles(driverCurrentLocation, destination);
+      canCompleteTrip = distance <= DROPOFF_GEOFENCE_MILES;
+      completeTripButton.disabled = !canCompleteTrip;
+      if (geofenceStatusEl) {
+        geofenceStatusEl.textContent = canCompleteTrip
+          ? "Within dropoff zone. You can complete the trip."
+          : `Get within ${(DROPOFF_GEOFENCE_MILES * 5280).toFixed(0)} ft of the destination. Currently ${(distance * 5280).toFixed(0)} ft away.`;
+      }
+    }
+
+    async function ensureQrScannerReady() {
+      if (qrScanner) return qrScanner;
+      if (!window.Html5Qrcode || !driverQrScannerEl) {
+        activeRideError.textContent = "QR scanner unavailable on this device.";
+        return null;
+      }
+      qrScanner = new Html5Qrcode(driverQrScannerEl.id);
+      return qrScanner;
+    }
+
+    async function startQrScanner(stage) {
+      const scanner = await ensureQrScannerReady();
+      if (!scanner) return;
+      const rideId = getPrimaryRideId();
+      if (!rideId) return;
+      if (qrScannerActive) {
+        await stopQrScanner();
+      }
+      qrScannerStage = stage;
+      qrScannerStatus.textContent = "Align the rider's QR within the frame.";
+      qrScannerContainer.style.display = "flex";
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          (decodedText) => {
+            const expected =
+              stage === "pickup"
+                ? `${QR_PAYLOAD.PICKUP_PREFIX}${rideId}`
+                : `${QR_PAYLOAD.DROPOFF_PREFIX}${rideId}`;
+            if (decodedText === expected) {
+              stopQrScanner();
+              if (stage === "pickup") {
+                handlePickupCheckInSuccess();
+              } else {
+                handleDropoffScanSuccess();
+              }
+            } else {
+              qrScannerStatus.textContent = "QR mismatch. Ask the rider to show their RideSync code.";
+            }
+          }
+        );
+        qrScannerActive = true;
+      } catch (err) {
+        console.error("QR scanner error", err);
+        qrScannerStatus.textContent = "Unable to start scanner. Check camera permissions.";
+      }
+    }
+
+    async function stopQrScanner() {
+      if (qrScanner && qrScannerActive) {
+        try {
+          await qrScanner.stop();
+        } catch (err) {
+          console.warn("Error stopping scanner", err);
+        }
+      }
+      qrScannerActive = false;
+      qrScannerStage = null;
+      qrScannerStatus.textContent = "";
+      if (qrScannerContainer) {
+        qrScannerContainer.style.display = "none";
+      }
+    }
+
+    async function handlePickupCheckInSuccess() {
+      await updateActiveRideFields({
+        checkInVerified: true,
+        checkInVerifiedAt: serverTimestamp()
+      });
+      activeRideCheckInVerified = true;
+      stopQrScanner();
+    }
+
+    async function handleDropoffScanSuccess() {
+      await updateActiveRideStatus(RIDE_STATUS.COMPLETED, {
+        checkOutVerified: true,
+        checkOutVerifiedAt: serverTimestamp()
+      });
+      stopQrScanner();
+      finishActiveRide("Trip completed!");
+    }
+
+    function finishActiveRide(message = "") {
+      stopQrScanner();
+      resetActiveRideRoute();
+      activeRideOverlay.classList.remove("active");
+      if (driverCancelModal) driverCancelModal.style.display = "none";
+      activeRideDocUnsubs.forEach((fn) => fn());
+      activeRideDocUnsubs = [];
+      activeRideGroup = [];
+      activeRideStatus = null;
+      activeRideDestination = null;
+      activeRideCheckInVerified = false;
+      canCompleteTrip = false;
+      if (geofenceStatusEl) geofenceStatusEl.textContent = "";
+      if (driverMessage) driverMessage.textContent = message;
+    }
+
+    async function cancelActiveRideAsDriver(reason) {
       if (!activeRideGroup.length) return;
       activeRideError.textContent = "";
       driverError.textContent = "";
@@ -1569,51 +1976,86 @@
         activeRideGroup.forEach((r) => {
           const ref = doc(db, "rideRequests", r.id);
           batch.update(ref, {
-            status: "canceled_by_driver",
-            driverCanceledAt: serverTimestamp()
+            status: RIDE_STATUS.CANCELLED,
+            driverCanceledAt: serverTimestamp(),
+            cancelReason: reason,
+            driverCancelReason: reason,
+            cancelledBy: "driver",
+            cancelledByDriverId: currentUser.uid
           });
         });
         await batch.commit();
-        driverMessage.textContent = "Ride canceled.";
-        activeRideOverlay.classList.remove("active");
-        activeRideGroup = [];
-        resetActiveRideRoute();
+        finishActiveRide("Ride canceled.");
       } catch (err) {
         console.error("cancelActiveRideAsDriver error", err);
         activeRideError.textContent = err.message || "Error canceling ride.";
       }
     }
 
-    markArrivedButton.addEventListener("click", () => {
-      updateActiveRideStatus("driver_arrived");
+    markArrivedButton.addEventListener("click", async () => {
+      if (activeRideStatus !== RIDE_STATUS.ACCEPTED) return;
+      await updateActiveRideStatus(RIDE_STATUS.ARRIVED_AT_PICKUP, { checkInVerified: false });
     });
 
-    showBoardingQrButton.addEventListener("click", () => {
-      showBoardingQr();
+    startTripButton.addEventListener("click", async () => {
+      if (activeRideStatus !== RIDE_STATUS.ARRIVED_AT_PICKUP) return;
+      if (!activeRideCheckInVerified) {
+        activeRideError.textContent = "Scan the rider's pickup QR before starting the trip.";
+        return;
+      }
+      await updateActiveRideStatus(RIDE_STATUS.IN_PROGRESS);
+      stopQrScanner();
+      const destination = activeRideDestination || getPrimaryDestinationLatLng();
+      if (destination) {
+        launchNavigationTo(destination);
+      }
     });
 
-    showDropoffQrButton.addEventListener("click", () => {
-      showDropoffQr();
-    });
-
-    startTripButton.addEventListener("click", () => {
-      updateActiveRideStatus("in_progress");
-        launchNavigationToPickup();
-    });
-
-    completeTripButton.addEventListener("click", () => {
-      updateActiveRideStatus("completed");
-      activeRideOverlay.classList.remove("active");
-      activeRideGroup = [];
-        resetActiveRideRoute();
+    completeTripButton.addEventListener("click", async () => {
+      if (activeRideStatus !== RIDE_STATUS.IN_PROGRESS) return;
+      if (!canCompleteTrip) {
+        activeRideError.textContent = "Move closer to the dropoff zone before completing.";
+        return;
+      }
+      await updateActiveRideStatus(RIDE_STATUS.ARRIVED_AT_DROPOFF);
     });
 
     driverCancelButton.addEventListener("click", () => {
-      cancelActiveRideAsDriver();
+      if (!activeRideGroup.length || activeRideStatus === RIDE_STATUS.COMPLETED) return;
+      if (driverCancelModal) {
+        driverCancelReasonInput.value = "";
+        driverCancelError.textContent = "";
+        driverCancelModal.style.display = "flex";
+      }
     });
+
+    if (driverCancelDismiss) {
+      driverCancelDismiss.addEventListener("click", () => {
+        driverCancelModal.style.display = "none";
+      });
+    }
+
+    if (driverCancelConfirm) {
+      driverCancelConfirm.addEventListener("click", async () => {
+        const reason = driverCancelReasonInput.value.trim();
+        if (!reason) {
+          driverCancelError.textContent = "Reason is required.";
+          return;
+        }
+        driverCancelModal.style.display = "none";
+        await cancelActiveRideAsDriver(reason);
+      });
+    }
+
+    if (stopScannerButton) {
+      stopScannerButton.addEventListener("click", () => {
+        stopQrScanner();
+      });
+    }
 
       closeActiveRideButton.addEventListener("click", () => {
         activeRideOverlay.classList.remove("active");
+        stopQrScanner();
         resetActiveRideRoute();
       });
 

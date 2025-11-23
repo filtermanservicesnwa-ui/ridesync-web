@@ -82,6 +82,17 @@
       font-size: 0.9rem;
       margin-bottom: 10px;
     }
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #f9fafb;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      resize: vertical;
+    }
     input:focus, select:focus {
       outline: 2px solid #2563eb;
       outline-offset: 1px;
@@ -116,6 +127,11 @@
         background: transparent;
         color: var(--rs-text);
         border-color: rgba(148,163,184,0.5);
+      }
+      .btn-danger {
+        background: linear-gradient(120deg, #e11d48, #be123c);
+        color: #fff1f2;
+        border: none;
       }
       .btn-small {
         width: auto;
@@ -350,6 +366,85 @@
       .driver-license-text {
         font-size: 0.85rem;
         color: #e5e7eb;
+      }
+      .qr-section {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px dashed rgba(148,163,184,0.4);
+        border-radius: 16px;
+        text-align: center;
+        background: rgba(2,6,23,0.6);
+      }
+      .qr-section canvas {
+        margin: 0 auto;
+        display: block;
+      }
+      .qr-caption {
+        font-size: 0.75rem;
+        margin-top: 6px;
+        color: #9ca3af;
+      }
+      .completion-card {
+        background: rgba(2,6,23,0.7);
+        border: 1px solid var(--rs-border);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      }
+      .completion-summary {
+        font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 12px;
+      }
+      .rating-stars,
+      .tip-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .rating-stars button,
+      .tip-buttons button {
+        width: auto;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(15,23,42,0.7);
+        border: 1px solid rgba(148,163,184,0.4);
+        color: #e5e7eb;
+        font-size: 0.95rem;
+        box-shadow: none;
+      }
+      .rating-stars button.active,
+      .tip-buttons button.active {
+        border-color: var(--rs-accent);
+        color: #ecfeff;
+        background: rgba(14,165,233,0.2);
+      }
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2,6,23,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 120;
+        padding: 16px;
+      }
+      .modal-card {
+        background: rgba(15,23,42,0.95);
+        border: 1px solid var(--rs-border);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 420px;
+        padding: 18px;
+        box-shadow: var(--rs-shadow);
+      }
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
       }
 
     .top-right {
@@ -735,9 +830,32 @@
       </div>
 
       <!-- RIDE SUMMARY (after ride completes) -->
-      <div id="rideSummary" style="display:none; color:#e5e7eb; padding:16px 4px; text-align:center;">
-        <h2 style="margin-bottom:8px;">Ride complete</h2>
-        <div id="rideSummaryText" style="font-size:0.85rem; line-height:1.4;"></div>
+      <div id="rideSummary" style="display:none; color:#e5e7eb; padding:16px 4px;">
+        <div id="rideCompletionCard" class="completion-card">
+          <h2 style="margin-bottom:4px;">Trip completed</h2>
+          <p class="small" style="text-align:center; margin-bottom:12px;">Rate your trip and leave a tip for your driver.</p>
+          <div id="rideSummaryText" class="completion-summary"></div>
+          <div class="rating-stars" id="ratingStars">
+            <button type="button" data-rating="1">★</button>
+            <button type="button" data-rating="2">★</button>
+            <button type="button" data-rating="3">★</button>
+            <button type="button" data-rating="4">★</button>
+            <button type="button" data-rating="5">★</button>
+          </div>
+          <div class="tip-buttons" id="tipButtons">
+            <button type="button" data-tip="1">$1</button>
+            <button type="button" data-tip="2">$2</button>
+            <button type="button" data-tip="5">$5</button>
+            <button type="button" data-tip="custom">Custom</button>
+          </div>
+          <input id="customTipInput" type="number" min="0" step="1" placeholder="Enter custom tip amount" style="display:none;" />
+          <textarea id="completionFeedbackInput" rows="3" placeholder="Share feedback (optional)"></textarea>
+          <button id="submitCompletionFeedback" class="btn-primary" type="button" style="margin-top:12px;">
+            Submit rating &amp; tip
+          </button>
+          <div id="completionFeedbackError" class="error"></div>
+          <div id="completionFeedbackMessage" class="success"></div>
+        </div>
       </div>
 
       <!-- RIDER ACTIVE RIDE OVERLAY -->
@@ -792,10 +910,17 @@
           Contact driver
         </button>
 
-        <div style="margin-top:10px;">
-          <canvas id="boardingQrCanvas"></canvas>
-          <div style="font-size:0.75rem; margin-top:4px; color:#9ca3af;">
-            Boarding pass – driver scans before boarding
+        <div id="pickupQrSection" class="qr-section" style="display:none;">
+          <canvas id="pickupQrCanvas"></canvas>
+          <div class="qr-caption">
+            Pickup QR — driver scans this when you board
+          </div>
+        </div>
+
+        <div id="dropoffQrSection" class="qr-section" style="display:none;">
+          <canvas id="dropoffQrCanvas"></canvas>
+          <div class="qr-caption">
+            Dropoff QR — driver scans this to complete the ride
           </div>
         </div>
 
@@ -819,6 +944,19 @@
         </button>
         <div id="cancelError" class="error"></div>
       </div>
+    </div>
+  </div>
+
+  <div id="cancelReasonModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <h3>Cancel ride</h3>
+      <p class="small" style="margin-bottom:8px;">Tell us why you're canceling so we can improve.</p>
+      <textarea id="cancelReasonInput" rows="4" placeholder="Enter reason" ></textarea>
+      <div class="modal-actions">
+        <button id="cancelReasonConfirm" class="btn-danger" type="button">Submit cancellation</button>
+        <button id="cancelReasonDismiss" class="btn-secondary" type="button">Keep ride</button>
+      </div>
+      <div id="cancelReasonError" class="error"></div>
     </div>
   </div>
 
@@ -875,6 +1013,23 @@
     const UNLIMITED_COOLDOWN_MINUTES = 30;
     const SURGE_MODE = false;
     const SURGE_COOLDOWN_MINUTES = 60;
+    const RIDE_STATUS = {
+      PENDING: "PENDING",
+      ACCEPTED: "ACCEPTED",
+      ARRIVED_AT_PICKUP: "ARRIVED_AT_PICKUP",
+      IN_PROGRESS: "IN_PROGRESS",
+      ARRIVED_AT_DROPOFF: "ARRIVED_AT_DROPOFF",
+      COMPLETED: "COMPLETED",
+      CANCELLED: "CANCELLED"
+    };
+    const POOL_STATE = {
+      SEARCHING: "SEARCHING",
+      MATCHED: "MATCHED"
+    };
+    const QR_PAYLOAD = {
+      PICKUP_PREFIX: "pickup:",
+      DROPOFF_PREFIX: "dropoff:"
+    };
 
     const urlParams = new URLSearchParams(window.location.search);
     const joinRideIdFromUrl = urlParams.get("join");
@@ -1000,10 +1155,32 @@
     const rideSummaryText = document.getElementById("rideSummaryText");
 
     const contactDriverBtn = document.getElementById("contactDriverBtn");
-    const boardingQrCanvas = document.getElementById("boardingQrCanvas");
+    const pickupQrSection = document.getElementById("pickupQrSection");
+    const pickupQrCanvas = document.getElementById("pickupQrCanvas");
+    const dropoffQrSection = document.getElementById("dropoffQrSection");
+    const dropoffQrCanvas = document.getElementById("dropoffQrCanvas");
 
-    let boardingQr = null;
+    const ratingStarsEl = document.getElementById("ratingStars");
+    const tipButtonsEl = document.getElementById("tipButtons");
+    const customTipInput = document.getElementById("customTipInput");
+    const completionFeedbackInput = document.getElementById("completionFeedbackInput");
+    const submitCompletionFeedback = document.getElementById("submitCompletionFeedback");
+    const completionFeedbackError = document.getElementById("completionFeedbackError");
+    const completionFeedbackMessage = document.getElementById("completionFeedbackMessage");
+
+    const cancelReasonModal = document.getElementById("cancelReasonModal");
+    const cancelReasonInput = document.getElementById("cancelReasonInput");
+    const cancelReasonConfirm = document.getElementById("cancelReasonConfirm");
+    const cancelReasonDismiss = document.getElementById("cancelReasonDismiss");
+    const cancelReasonError = document.getElementById("cancelReasonError");
+
+    let pickupQr = null;
+    let dropoffQr = null;
     let latestRideForOverlay = null;
+    let selectedRating = null;
+    let selectedTipValue = null;
+    let selectedTipType = null;
+    let selectedTipButtonKey = null;
 
     let isSignupMode = false;
     let currentUserProfile = null;
@@ -1027,12 +1204,9 @@
     let currentRideWatcher = null;
 
       const riderCancelableStatuses = new Set([
-        "pending_driver",
-        "pooled_pending_driver",
-        "pool_searching",
-        "driver_assigned",
-        "driver_arrived",
-        "pending"
+        RIDE_STATUS.PENDING,
+        RIDE_STATUS.ACCEPTED,
+        RIDE_STATUS.ARRIVED_AT_PICKUP
       ]);
 
       function clearCurrentRideState() {
@@ -1096,8 +1270,12 @@
         resetJoinModeUi();
         hideGroupQr();
           renderDriverIdentity(null);
+          hideRideQrSections();
         if (cancelError) cancelError.textContent = "";
           resetRideForm();
+          resetCompletionUi();
+        if (cancelReasonModal) cancelReasonModal.style.display = "none";
+        latestRideForOverlay = null;
 
         if (isError) {
           profileError.textContent = message || "";
@@ -1225,6 +1403,9 @@
         groupOccupancyUnsub = null;
       }
       hideGroupQr();
+      hideRideQrSections();
+      resetCompletionUi();
+      closeCancelReasonModal();
       joinBanner.style.display = "none";
       ridersSection.style.display = "block";
       showAuthView();
@@ -1886,7 +2067,7 @@
         if (licenseNumber && typeof licenseNumber === "string" && licenseNumber.trim().length >= 4) {
           return `Ending in ${licenseNumber.trim().slice(-4)}`;
         }
-        if (data?.driverVerified || data?.driverLicensePhotoUrl) {
+        if (data?.driverVerified || data?.driverLicensePhotoUrl || data?.driverLicenseImageUrl) {
           return "Verified with RideSync";
         }
         return "License info not available";
@@ -1931,7 +2112,14 @@
           driverIdentityRating.textContent = `★ ${ratingText}`;
         }
 
-        const avatarUrl = safeImageUrl(data.driverAvatarUrl || data.driverPhotoUrl, null);
+        const avatarUrl = safeImageUrl(
+          data.driverAvatarUrl ||
+            data.driverPhotoUrl ||
+            data.driverProfilePicUrl ||
+            data.driverImageUrl ||
+            data.driverAvatar,
+          null
+        );
         if (driverIdentityAvatarImg) {
           if (avatarUrl) {
             driverIdentityAvatarImg.src = avatarUrl;
@@ -1963,7 +2151,12 @@
         }
 
         if (driverVehiclePhoto) {
-          const vehicleSrc = safeImageUrl(data.driverVehiclePhotoUrl, DRIVER_PLACEHOLDERS.vehicle);
+          const vehicleSrc = safeImageUrl(
+            data.driverCarImageUrl ||
+              data.driverVehiclePhotoUrl ||
+              data.driverVehicleImageUrl,
+            DRIVER_PLACEHOLDERS.vehicle
+          );
           driverVehiclePhoto.src = vehicleSrc;
         }
         if (driverVehicleName) {
@@ -1982,7 +2175,12 @@
         }
 
         if (driverLicensePhoto) {
-          const licenseSrc = safeImageUrl(data.driverLicensePhotoUrl, DRIVER_PLACEHOLDERS.license);
+          const licenseSrc = safeImageUrl(
+            data.driverLicenseImageUrl ||
+              data.driverLicensePhotoUrl ||
+              data.driverLicenseUrl,
+            DRIVER_PLACEHOLDERS.license
+          );
           driverLicensePhoto.src = licenseSrc;
         }
         if (driverLicenseText) {
@@ -1992,10 +2190,77 @@
         driverIdentityCard.style.display = "flex";
       }
 
+      function hideRideQrSections() {
+        if (pickupQrSection) pickupQrSection.style.display = "none";
+        if (dropoffQrSection) dropoffQrSection.style.display = "none";
+      }
+
+      function showPickupQr(rideId) {
+        if (!pickupQrSection || !pickupQrCanvas || !rideId) return;
+        pickupQrSection.style.display = "block";
+        const value = `${QR_PAYLOAD.PICKUP_PREFIX}${rideId}`;
+        if (!pickupQr) {
+          pickupQr = new QRious({
+            element: pickupQrCanvas,
+            size: 160,
+            value
+          });
+        } else {
+          pickupQr.set({ value });
+        }
+      }
+
+      function showDropoffQr(rideId) {
+        if (!dropoffQrSection || !dropoffQrCanvas || !rideId) return;
+        dropoffQrSection.style.display = "block";
+        const value = `${QR_PAYLOAD.DROPOFF_PREFIX}${rideId}`;
+        if (!dropoffQr) {
+          dropoffQr = new QRious({
+            element: dropoffQrCanvas,
+            size: 160,
+            value
+          });
+        } else {
+          dropoffQr.set({ value });
+        }
+      }
+
+      function resetCompletionUi() {
+        selectedRating = null;
+        selectedTipValue = null;
+        selectedTipType = null;
+        selectedTipButtonKey = null;
+        if (ratingStarsEl) {
+          ratingStarsEl.querySelectorAll("button").forEach((btn) => btn.classList.remove("active"));
+        }
+        if (tipButtonsEl) {
+          tipButtonsEl.querySelectorAll("button").forEach((btn) => btn.classList.remove("active"));
+        }
+        if (customTipInput) {
+          customTipInput.value = "";
+          customTipInput.style.display = "none";
+        }
+        if (completionFeedbackInput) completionFeedbackInput.value = "";
+        if (completionFeedbackError) completionFeedbackError.textContent = "";
+        if (completionFeedbackMessage) completionFeedbackMessage.textContent = "";
+      }
+
+      function openCancelReasonModal() {
+        if (!cancelReasonModal) return;
+        if (cancelReasonInput) cancelReasonInput.value = "";
+        if (cancelReasonError) cancelReasonError.textContent = "";
+        cancelReasonModal.style.display = "flex";
+      }
+
+      function closeCancelReasonModal() {
+        if (!cancelReasonModal) return;
+        cancelReasonModal.style.display = "none";
+      }
+
       function updateRiderOverlay(rideId, data) {
         if (!riderOverlay) return;
         latestRideForOverlay = { rideId, data };
-
+        const status = data.status || RIDE_STATUS.PENDING;
         const dest =
           data.toDestination ||
           data.toAddress ||
@@ -2011,7 +2276,7 @@
         const vehicleStr = vehicleParts.join(" ").trim();
         const plate = data.driverLicensePlate || "";
 
-        riderOverlayTitle.textContent = "Driver assigned";
+        riderOverlayTitle.textContent = "Driver update";
         riderOverlayTag.textContent = dest;
 
         const infoLines = [];
@@ -2021,33 +2286,46 @@
         riderOverlayInfo.innerHTML = infoLines.join("<br/>");
 
         const friendlyStatus = (() => {
-          if (data.status === "driver_assigned") return "Your driver is on the way.";
-          if (data.status === "driver_arrived") return "Your driver has arrived.";
-          if (data.status === "in_progress") return "Ride in progress.";
-          return data.status || "";
+          switch (status) {
+            case RIDE_STATUS.ACCEPTED:
+              return "Your driver is on the way.";
+            case RIDE_STATUS.ARRIVED_AT_PICKUP:
+              return "Your driver is waiting at pickup.";
+            case RIDE_STATUS.IN_PROGRESS:
+              return "Ride in progress.";
+            case RIDE_STATUS.ARRIVED_AT_DROPOFF:
+              return "Confirming dropoff.";
+            default:
+              return status || "";
+          }
         })();
         const tripEstimate = formatTripEstimate(data);
-        const combinedStatus = [friendlyStatus, tripEstimate].filter(Boolean).join(" ").trim();
-        riderOverlayStatus.textContent = combinedStatus;
-          renderDriverIdentity(data);
+        riderOverlayStatus.textContent = [friendlyStatus, tripEstimate].filter(Boolean).join(" ").trim();
+        renderDriverIdentity(data);
+
+        hideRideQrSections();
+        if (status === RIDE_STATUS.ACCEPTED || status === RIDE_STATUS.ARRIVED_AT_PICKUP) {
+          showPickupQr(rideId);
+        } else if (status === RIDE_STATUS.ARRIVED_AT_DROPOFF) {
+          showDropoffQr(rideId);
+        }
 
         riderOverlayError.textContent = "";
 
-        if (boardingQrCanvas) {
-          const boardingValue = `board:${rideId}`;
-          if (!boardingQr) {
-            boardingQr = new QRious({
-              element: boardingQrCanvas,
-              size: 140,
-              value: boardingValue
-            });
-          } else {
-            boardingQr.set({ value: boardingValue });
+        if (status === RIDE_STATUS.IN_PROGRESS) {
+          if (riderOverlay) riderOverlay.classList.remove("active");
+          if (riderMiniBar) {
+            const tripEstimateText = formatTripEstimate(data);
+            riderMiniBar.textContent = tripEstimateText
+              ? `Ride in progress — ${tripEstimateText.replace("Estimated trip: ", "")}`
+              : "Ride in progress.";
+            riderMiniBar.classList.add("active");
           }
+        } else {
+          if (riderMiniBar) riderMiniBar.classList.remove("active");
+          riderOverlay.classList.add("active");
         }
 
-        riderOverlay.classList.add("active");
-        if (riderMiniBar) riderMiniBar.classList.remove("active");
         if (rideSummary) rideSummary.style.display = "none";
       }
 
@@ -2059,6 +2337,7 @@
       rideView.style.display = "none";
 
       rideSummary.style.display = "block";
+      resetCompletionUi();
 
       const driverName = data.driverName || "Your driver";
       const minutes = data.estimatedDurationMinutes || data.totalMinutes || null;
@@ -2082,8 +2361,6 @@
       if (fare != null)
         lines.push(`<strong>Fare:</strong> $${Number(fare).toFixed(2)}`);
 
-      lines.push("<br/>Thank you for choosing RideSync!");
-
       rideSummaryText.innerHTML = lines.join("<br/>");
     }
 
@@ -2100,44 +2377,34 @@
 
           currentRideStatus = status;
 
-          if (status === "canceled_by_driver") {
+          if (status === RIDE_STATUS.CANCELLED) {
             clearCurrentRideState();
-            returnToHomeAfterRide("Driver canceled your ride. You're back on the home screen.", true);
+            returnToHomeAfterRide(
+              data.cancelledBy === "driver"
+                ? "Driver canceled your ride. You're back on the home screen."
+                : "Ride canceled.",
+              data.cancelledBy === "driver"
+            );
             return;
           }
 
-          if (status === "canceled_by_rider") {
-            clearCurrentRideState();
-            returnToHomeAfterRide("Ride canceled.");
-            return;
-          }
-
-        // Driver assigned / arrived / in progress → show overlay or mini bar
+        // Driver accepted / arrived / dropoff / in progress
         if (
-          status === "driver_assigned" ||
-          status === "driver_arrived" ||
-          status === "in_progress"
+          status === RIDE_STATUS.ACCEPTED ||
+          status === RIDE_STATUS.ARRIVED_AT_PICKUP ||
+          status === RIDE_STATUS.ARRIVED_AT_DROPOFF ||
+          status === RIDE_STATUS.IN_PROGRESS
         ) {
           updateRiderOverlay(rideId, data);
-
-          // When trip is actually in progress, collapse to mini bar
-          if (status === "in_progress" && riderMiniBar && riderOverlay) {
-            const tripEstimateText = formatTripEstimate(data);
-            riderOverlay.classList.remove("active");
-            riderMiniBar.textContent = tripEstimateText
-              ? `Ride in progress — ${tripEstimateText.replace("Estimated trip: ", "")}`
-              : "Ride in progress.";
-            riderMiniBar.classList.add("active");
-          }
-        } else if (status === "completed") {
-          // Done → show summary screen
+        } else if (status === RIDE_STATUS.COMPLETED) {
           showRideSummary(data);
-            renderDriverIdentity(null);
+          renderDriverIdentity(null);
+          hideRideQrSections();
         } else {
-          // Any other status → hide overlay + mini bar
           if (riderOverlay) riderOverlay.classList.remove("active");
           if (riderMiniBar) riderMiniBar.classList.remove("active");
-            renderDriverIdentity(null);
+          renderDriverIdentity(null);
+          hideRideQrSections();
         }
       });
     }
@@ -2188,7 +2455,7 @@
       });
     }
 
-      cancelRideButton.addEventListener("click", async () => {
+      cancelRideButton.addEventListener("click", () => {
         cancelError.textContent = "";
         profileMessage.textContent = "";
         if (!currentRideId) {
@@ -2201,21 +2468,49 @@
           return;
         }
 
+        openCancelReasonModal();
+      });
+
+      async function submitRideCancellation(reason) {
+        const user = auth.currentUser;
+        if (!user || !currentRideId) return;
         try {
           const rideRef = doc(db, "rideRequests", currentRideId);
           await updateDoc(rideRef, {
-            status: "canceled_by_rider",
+            status: RIDE_STATUS.CANCELLED,
             paymentStatus: "canceled",
-            canceledAt: serverTimestamp()
+            cancelReason: reason,
+            cancelledBy: "rider",
+            cancelledByUserId: user.uid,
+            cancelledAt: serverTimestamp()
           });
 
+          closeCancelReasonModal();
           clearCurrentRideState();
           returnToHomeAfterRide("Ride canceled, you won't be charged.");
         } catch (err) {
           console.error(err);
-          cancelError.textContent = "Could not cancel ride.";
+          if (cancelReasonError) cancelReasonError.textContent = "Could not cancel ride.";
         }
-      });
+      }
+
+      if (cancelReasonConfirm) {
+        cancelReasonConfirm.addEventListener("click", async () => {
+          if (!cancelReasonInput) return;
+          const reason = cancelReasonInput.value.trim();
+          if (!reason) {
+            if (cancelReasonError) cancelReasonError.textContent = "Reason is required.";
+            return;
+          }
+          await submitRideCancellation(reason);
+        });
+      }
+
+      if (cancelReasonDismiss) {
+        cancelReasonDismiss.addEventListener("click", () => {
+          closeCancelReasonModal();
+        });
+      }
 
     // Rider overlay buttons
     if (closeRiderOverlayButton && riderOverlay) {
@@ -2237,13 +2532,130 @@
       });
     }
 
+    function selectRating(value) {
+      selectedRating = value;
+      if (!ratingStarsEl) return;
+      ratingStarsEl.querySelectorAll("button").forEach((btn) => {
+        const btnValue = Number(btn.dataset.rating);
+        if (btnValue <= value) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+    }
+
+    function selectTip(tipValue, tipKey) {
+      selectedTipValue = tipValue;
+      selectedTipButtonKey = tipKey;
+      if (tipKey === "custom") {
+        selectedTipType = "custom";
+      } else if (tipValue) {
+        selectedTipType = "preset";
+      } else {
+        selectedTipType = null;
+      }
+      if (tipButtonsEl) {
+        tipButtonsEl.querySelectorAll("button").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.tip === tipKey);
+        });
+      }
+      if (customTipInput) {
+        if (tipKey === "custom") {
+          customTipInput.style.display = "block";
+          customTipInput.focus();
+        } else {
+          customTipInput.style.display = "none";
+          customTipInput.value = "";
+        }
+      }
+    }
+
+    if (ratingStarsEl) {
+      ratingStarsEl.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const val = Number(btn.dataset.rating || "0");
+          if (val > 0) selectRating(val);
+        });
+      });
+    }
+
+    if (tipButtonsEl) {
+      tipButtonsEl.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tipType = btn.dataset.tip;
+          if (!tipType) return;
+          if (tipType === "custom") {
+            selectTip(null, "custom");
+          } else {
+            selectTip(Number(tipType), tipType);
+          }
+        });
+      });
+    }
+
+    if (customTipInput) {
+      customTipInput.addEventListener("input", () => {
+        if (selectedTipType !== "custom") return;
+        const val = parseFloat(customTipInput.value);
+        selectedTipValue = Number.isFinite(val) && val > 0 ? val : null;
+      });
+    }
+
+    async function submitCompletionFeedbackForm() {
+      completionFeedbackError.textContent = "";
+      completionFeedbackMessage.textContent = "";
+      if (!currentRideId) {
+        completionFeedbackError.textContent = "Ride not found.";
+        return;
+      }
+      if (!selectedRating) {
+        completionFeedbackError.textContent = "Select a rating.";
+        return;
+      }
+      let tipAmount = selectedTipValue || 0;
+      if (selectedTipType === "custom") {
+        if (!selectedTipValue) {
+          completionFeedbackError.textContent = "Enter a custom tip.";
+          return;
+        }
+        tipAmount = selectedTipValue;
+      }
+      const feedbackText = completionFeedbackInput?.value.trim() || "";
+
+      try {
+        const rideRef = doc(db, "rideRequests", currentRideId);
+        await updateDoc(rideRef, {
+          riderRating: selectedRating,
+          riderTipAmount: tipAmount,
+          riderTipType: selectedTipType || (tipAmount ? "preset" : "none"),
+          riderFeedback: feedbackText || null,
+          ratingSubmittedAt: serverTimestamp()
+        });
+        completionFeedbackMessage.textContent = "Thanks for the feedback!";
+        setTimeout(() => {
+          clearCurrentRideState();
+          returnToHomeAfterRide("Thanks for riding with us!");
+        }, 600);
+      } catch (err) {
+        console.error("submitCompletionFeedback error", err);
+        completionFeedbackError.textContent = "Could not submit feedback.";
+      }
+    }
+
+    if (submitCompletionFeedback) {
+      submitCompletionFeedback.addEventListener("click", () => {
+        submitCompletionFeedbackForm();
+      });
+    }
+
     async function tryClientSideUofaMatch(myRideId) {
       try {
         const myRef = doc(db, "rideRequests", myRideId);
         const mySnap = await getDoc(myRef);
         if (!mySnap.exists()) return;
         const my = mySnap.data();
-        if (my.poolType !== "uofa" || my.status !== "pool_searching") return;
+        if (my.poolType !== "uofa" || my.poolState !== POOL_STATE.SEARCHING) return;
 
         const myGender = (my.gender || "").toLowerCase();
 
@@ -2259,7 +2671,7 @@
           if (docSnap.id === myRideId) return;
           const d = docSnap.data();
           if (
-            d.status === "pool_searching" &&
+            d.poolState === POOL_STATE.SEARCHING &&
             !d.groupId &&
             (myGender === "" || (d.gender || "").toLowerCase() === myGender)
           ) {
@@ -2273,11 +2685,11 @@
 
         await updateDoc(myRef, {
           groupId,
-          status: "pooled_pending_driver"
+          poolState: POOL_STATE.MATCHED
         });
         await updateDoc(doc(db, "rideRequests", partnerId), {
           groupId,
-          status: "pooled_pending_driver"
+          poolState: POOL_STATE.MATCHED
         });
       } catch (err) {
         console.error("UofA client match error", err);
@@ -2324,11 +2736,12 @@
       }
 
       let poolType = null;
-      let status = "pending_driver";
+      let poolState = null;
+      const status = RIDE_STATUS.PENDING;
 
       if (uofaPoolEligible && numRiders === 1) {
         poolType = "uofa";
-        status = "pool_searching";
+        poolState = POOL_STATE.SEARCHING;
       }
 
       const destAddress = destinationEl.value.trim() || (lastDestinationPlace?.formatted_address || "");
@@ -2367,6 +2780,9 @@
         poolType,
         fromLocation: currentLocation || null,
         toDestination: destAddress || null,
+        toLocation: destinationLatLng
+          ? { lat: destinationLatLng.lat(), lng: destinationLatLng.lng() }
+          : null,
         inHomeZone,
         estimatedDurationMinutes: lastRideMetrics.durationMinutes
           ? +lastRideMetrics.durationMinutes.toFixed(1)
@@ -2382,6 +2798,7 @@
           docRef = await addDoc(collection(db, "rideRequests"), {
             ...rideBase,
             status,
+            poolState,
             paymentMethod: poolType === "uofa" ? "included_pool" : "included",
             paymentStatus: "included"
           });
@@ -2389,6 +2806,7 @@
           docRef = await addDoc(collection(db, "rideRequests"), {
             ...rideBase,
             status,
+            poolState,
             paymentMethod: "stripe",
             paymentStatus: poolType === "uofa" ? "pool_preauthorized" : "preauthorized",
             stripeAmount: total
@@ -2493,11 +2911,12 @@
           poolType: null,
           fromLocation: host.fromLocation || null,
           toDestination: host.toDestination || null,
+          toLocation: host.toLocation || null,
           inHomeZone,
           estimatedDurationMinutes: host.estimatedDurationMinutes || null,
           distanceMeters: host.distanceMeters || null,
           fare,
-          driverId: host.driverId || "clifton",
+          driverId: host.driverId || null,
           joinedExistingRideId: hostSnap.id
         };
 
@@ -2505,14 +2924,14 @@
         if (plan !== "basic" && inHomeZone) {
           docRef = await addDoc(collection(db, "rideRequests"), {
             ...joinRideBase,
-            status: "pending_driver",
+            status: RIDE_STATUS.PENDING,
             paymentMethod: "included",
             paymentStatus: "included"
           });
         } else {
           docRef = await addDoc(collection(db, "rideRequests"), {
             ...joinRideBase,
-            status: "pending_driver",
+            status: RIDE_STATUS.PENDING,
             paymentMethod: "stripe",
             paymentStatus: "preauthorized",
             stripeAmount: total
