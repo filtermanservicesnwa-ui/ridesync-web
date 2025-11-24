@@ -1008,8 +1008,11 @@
               </div>
             </div>
 
-        <button id="contactDriverBtn" class="overlay-close" style="margin-top:8px;">
-          Contact driver
+        <button id="contactDriverBtn" class="btn-primary" type="button" style="margin-top:12px;">
+          Call or text 479-422-1508 with any problems
+        </button>
+        <button id="backToRideHomeButton" class="btn-secondary" type="button" style="margin-top:8px;">
+          Back
         </button>
 
         <div id="pickupPinSection" class="pin-section" style="display:none;">
@@ -1131,6 +1134,8 @@
       MATCHED: "MATCHED"
     };
     const PIN_LENGTH = 4;
+    const SUPPORT_PHONE_NUMBER = "479-422-1508";
+    const SUPPORT_TEL_LINK = "tel:14794221508";
 
     const urlParams = new URLSearchParams(window.location.search);
     const joinRideIdFromUrl = urlParams.get("join");
@@ -1257,6 +1262,7 @@
     const rideSummaryText = document.getElementById("rideSummaryText");
 
     const contactDriverBtn = document.getElementById("contactDriverBtn");
+    const backToRideHomeButton = document.getElementById("backToRideHomeButton");
     const pickupPinSection = document.getElementById("pickupPinSection");
     const pickupPinValue = document.getElementById("pickupPinValue");
     const dropoffPinSection = document.getElementById("dropoffPinSection");
@@ -1276,7 +1282,6 @@
     const cancelReasonDismiss = document.getElementById("cancelReasonDismiss");
     const cancelReasonError = document.getElementById("cancelReasonError");
 
-    let latestRideForOverlay = null;
     let selectedRating = null;
     let selectedTipValue = null;
     let selectedTipType = null;
@@ -1387,7 +1392,6 @@
           resetRideForm();
           resetCompletionUi();
         if (cancelReasonModal) cancelReasonModal.style.display = "none";
-        latestRideForOverlay = null;
 
         if (isError) {
           profileError.textContent = message || "";
@@ -2356,7 +2360,7 @@
 
       function updateRiderOverlay(rideId, data) {
         if (!riderOverlay) return;
-        latestRideForOverlay = { rideId, data };
+        showRideView();
         const status = data.status || RIDE_STATUS.PENDING;
         const dest =
           data.toDestination ||
@@ -2373,7 +2377,22 @@
         const vehicleStr = vehicleParts.join(" ").trim();
         const plate = data.driverLicensePlate || "";
 
-        riderOverlayTitle.textContent = "Driver update";
+        const overlayTitleText = (() => {
+          switch (status) {
+            case RIDE_STATUS.ACCEPTED:
+              return "Driver on the way";
+            case RIDE_STATUS.ARRIVED_AT_PICKUP:
+              return "Driver has arrived";
+            case RIDE_STATUS.IN_PROGRESS:
+              return "Ride in progress";
+            case RIDE_STATUS.ARRIVED_AT_DROPOFF:
+              return "Finishing ride";
+            default:
+              return "Driver update";
+          }
+        })();
+
+        riderOverlayTitle.textContent = overlayTitleText;
         riderOverlayTag.textContent = dest;
 
         const infoLines = [];
@@ -2389,7 +2408,7 @@
             case RIDE_STATUS.ARRIVED_AT_PICKUP:
               return "Your driver is waiting at pickup.";
             case RIDE_STATUS.IN_PROGRESS:
-              return "Ride in progress.";
+              return "Your ride is in progress.";
             case RIDE_STATUS.ARRIVED_AT_DROPOFF:
               return "Confirming dropoff.";
             default:
@@ -2409,8 +2428,9 @@
 
         riderOverlayError.textContent = "";
 
-        if (status === RIDE_STATUS.IN_PROGRESS) {
-          if (riderOverlay) riderOverlay.classList.remove("active");
+        const isRideInProgress = status === RIDE_STATUS.IN_PROGRESS;
+
+        if (isRideInProgress) {
           if (riderMiniBar) {
             const tripEstimateText = formatTripEstimate(data);
             riderMiniBar.textContent = tripEstimateText
@@ -2418,10 +2438,11 @@
               : "Ride in progress.";
             riderMiniBar.classList.add("active");
           }
-        } else {
-          if (riderMiniBar) riderMiniBar.classList.remove("active");
-          riderOverlay.classList.add("active");
+        } else if (riderMiniBar) {
+          riderMiniBar.classList.remove("active");
         }
+
+        riderOverlay.classList.add("active");
 
         if (rideSummary) rideSummary.style.display = "none";
       }
@@ -2617,15 +2638,18 @@
     }
 
     if (contactDriverBtn) {
+      contactDriverBtn.textContent = `Call or text ${SUPPORT_PHONE_NUMBER} with any problems`;
       contactDriverBtn.addEventListener("click", () => {
-        if (!latestRideForOverlay || !latestRideForOverlay.data) return;
-        const email = latestRideForOverlay.data.driverEmail;
-        if (!email) {
-          alert("Driver contact info not available yet.");
-          return;
+        window.location.href = SUPPORT_TEL_LINK;
+      });
+    }
+
+    if (backToRideHomeButton) {
+      backToRideHomeButton.addEventListener("click", () => {
+        showRideView();
+        if (riderOverlay) {
+          riderOverlay.classList.remove("active");
         }
-        // Opens default mail app to contact driver; can switch to SMS later if you store phone
-        window.location.href = `mailto:${email}`;
       });
     }
 
