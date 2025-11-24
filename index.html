@@ -436,6 +436,31 @@
         margin-top: 6px;
         color: #9ca3af;
       }
+      .pin-section {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px dashed rgba(148,163,184,0.4);
+        border-radius: 16px;
+        background: rgba(2,6,23,0.6);
+        text-align: center;
+      }
+      .pin-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #94a3b8;
+      }
+      .pin-value {
+        font-size: 2rem;
+        letter-spacing: 0.3em;
+        color: #f8fafc;
+        margin: 6px 0;
+        font-weight: 600;
+      }
+      .pin-caption {
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
       .completion-card {
         background: rgba(2,6,23,0.7);
         border: 1px solid var(--rs-border);
@@ -987,17 +1012,19 @@
           Contact driver
         </button>
 
-        <div id="pickupQrSection" class="qr-section" style="display:none;">
-          <canvas id="pickupQrCanvas"></canvas>
-          <div class="qr-caption">
-            Pickup QR — driver scans this when you board
+        <div id="pickupPinSection" class="pin-section" style="display:none;">
+          <div class="pin-label">Pickup PIN</div>
+          <div id="pickupPinValue" class="pin-value">----</div>
+          <div class="pin-caption">
+            Share this code with your driver when they arrive.
           </div>
         </div>
 
-        <div id="dropoffQrSection" class="qr-section" style="display:none;">
-          <canvas id="dropoffQrCanvas"></canvas>
-          <div class="qr-caption">
-            Dropoff QR — driver scans this to complete the ride
+        <div id="dropoffPinSection" class="pin-section" style="display:none;">
+          <div class="pin-label">Dropoff PIN</div>
+          <div id="dropoffPinValue" class="pin-value">----</div>
+          <div class="pin-caption">
+            Give this code to your driver to finish the ride.
           </div>
         </div>
 
@@ -1103,10 +1130,7 @@
       SEARCHING: "SEARCHING",
       MATCHED: "MATCHED"
     };
-    const QR_PAYLOAD = {
-      PICKUP_PREFIX: "pickup:",
-      DROPOFF_PREFIX: "dropoff:"
-    };
+    const PIN_LENGTH = 4;
 
     const urlParams = new URLSearchParams(window.location.search);
     const joinRideIdFromUrl = urlParams.get("join");
@@ -1233,10 +1257,10 @@
     const rideSummaryText = document.getElementById("rideSummaryText");
 
     const contactDriverBtn = document.getElementById("contactDriverBtn");
-    const pickupQrSection = document.getElementById("pickupQrSection");
-    const pickupQrCanvas = document.getElementById("pickupQrCanvas");
-    const dropoffQrSection = document.getElementById("dropoffQrSection");
-    const dropoffQrCanvas = document.getElementById("dropoffQrCanvas");
+    const pickupPinSection = document.getElementById("pickupPinSection");
+    const pickupPinValue = document.getElementById("pickupPinValue");
+    const dropoffPinSection = document.getElementById("dropoffPinSection");
+    const dropoffPinValue = document.getElementById("dropoffPinValue");
 
     const ratingStarsEl = document.getElementById("ratingStars");
     const tipButtonsEl = document.getElementById("tipButtons");
@@ -1252,8 +1276,6 @@
     const cancelReasonDismiss = document.getElementById("cancelReasonDismiss");
     const cancelReasonError = document.getElementById("cancelReasonError");
 
-    let pickupQr = null;
-    let dropoffQr = null;
     let latestRideForOverlay = null;
     let selectedRating = null;
     let selectedTipValue = null;
@@ -1280,6 +1302,18 @@
     let currentRideId = null;
     let currentRideStatus = null;
     let currentRideWatcher = null;
+
+    function generatePin(length = PIN_LENGTH) {
+      const upperBound = 10 ** length;
+      const value = Math.floor(Math.random() * upperBound);
+      return String(value).padStart(length, "0");
+    }
+
+    function formatPinValue(pin) {
+      if (pin === null || pin === undefined) return "----";
+      const normalized = String(pin).trim();
+      return normalized ? normalized.padStart(PIN_LENGTH, "0") : "----";
+    }
 
       const riderCancelableStatuses = new Set([
         RIDE_STATUS.PENDING,
@@ -1348,7 +1382,7 @@
         resetJoinModeUi();
         hideGroupQr();
           renderDriverIdentity(null);
-          hideRideQrSections();
+          hideRidePinSections();
         if (cancelError) cancelError.textContent = "";
           resetRideForm();
           resetCompletionUi();
@@ -1481,7 +1515,7 @@
         groupOccupancyUnsub = null;
       }
       hideGroupQr();
-      hideRideQrSections();
+      hideRidePinSections();
       resetCompletionUi();
       closeCancelReasonModal();
       joinBanner.style.display = "none";
@@ -2271,39 +2305,21 @@
         driverIdentityCard.style.display = "flex";
       }
 
-      function hideRideQrSections() {
-        if (pickupQrSection) pickupQrSection.style.display = "none";
-        if (dropoffQrSection) dropoffQrSection.style.display = "none";
+      function hideRidePinSections() {
+        if (pickupPinSection) pickupPinSection.style.display = "none";
+        if (dropoffPinSection) dropoffPinSection.style.display = "none";
       }
 
-      function showPickupQr(rideId) {
-        if (!pickupQrSection || !pickupQrCanvas || !rideId) return;
-        pickupQrSection.style.display = "block";
-        const value = `${QR_PAYLOAD.PICKUP_PREFIX}${rideId}`;
-        if (!pickupQr) {
-          pickupQr = new QRious({
-            element: pickupQrCanvas,
-            size: 160,
-            value
-          });
-        } else {
-          pickupQr.set({ value });
-        }
+      function renderPickupPin(pin) {
+        if (!pickupPinSection || !pickupPinValue) return;
+        pickupPinValue.textContent = formatPinValue(pin);
+        pickupPinSection.style.display = "block";
       }
 
-      function showDropoffQr(rideId) {
-        if (!dropoffQrSection || !dropoffQrCanvas || !rideId) return;
-        dropoffQrSection.style.display = "block";
-        const value = `${QR_PAYLOAD.DROPOFF_PREFIX}${rideId}`;
-        if (!dropoffQr) {
-          dropoffQr = new QRious({
-            element: dropoffQrCanvas,
-            size: 160,
-            value
-          });
-        } else {
-          dropoffQr.set({ value });
-        }
+      function renderDropoffPin(pin) {
+        if (!dropoffPinSection || !dropoffPinValue) return;
+        dropoffPinValue.textContent = formatPinValue(pin);
+        dropoffPinSection.style.display = "block";
       }
 
       function resetCompletionUi() {
@@ -2384,11 +2400,11 @@
         riderOverlayStatus.textContent = [friendlyStatus, tripEstimate].filter(Boolean).join(" ").trim();
         renderDriverIdentity(data);
 
-        hideRideQrSections();
+        hideRidePinSections();
         if (status === RIDE_STATUS.ACCEPTED || status === RIDE_STATUS.ARRIVED_AT_PICKUP) {
-          showPickupQr(rideId);
+          renderPickupPin(data.pickupPin);
         } else if (status === RIDE_STATUS.ARRIVED_AT_DROPOFF) {
-          showDropoffQr(rideId);
+          renderDropoffPin(data.dropoffPin);
         }
 
         riderOverlayError.textContent = "";
@@ -2480,12 +2496,12 @@
         } else if (status === RIDE_STATUS.COMPLETED) {
           showRideSummary(data);
           renderDriverIdentity(null);
-          hideRideQrSections();
+          hideRidePinSections();
         } else {
           if (riderOverlay) riderOverlay.classList.remove("active");
           if (riderMiniBar) riderMiniBar.classList.remove("active");
           renderDriverIdentity(null);
-          hideRideQrSections();
+          hideRidePinSections();
         }
       });
     }
@@ -2841,6 +2857,9 @@
       const maxRiders = numRiders;
       const isGroupRide = maxRiders > 1;
 
+      const pickupPin = generatePin();
+      const dropoffPin = generatePin();
+
       const rideBase = {
         userId: user.uid,
         startedByUserId: user.uid,
@@ -2870,6 +2889,8 @@
           : null,
         distanceMeters: lastRideMetrics.distanceMeters || null,
         fare,
+        pickupPin,
+        dropoffPin
       };
 
       try {
@@ -2971,6 +2992,17 @@
         const riderPhone =
           currentUserProfile?.phone || currentUserProfile?.phoneNumber || "";
 
+        let hostPickupPin = host.pickupPin;
+        let hostDropoffPin = host.dropoffPin;
+        if (!hostPickupPin || !hostDropoffPin) {
+          hostPickupPin = generatePin();
+          hostDropoffPin = generatePin();
+          await updateDoc(hostRef, {
+            pickupPin: hostPickupPin,
+            dropoffPin: hostDropoffPin
+          });
+        }
+
         const groupId = host.groupId || hostSnap.id;
 
         const joinRideBase = {
@@ -2997,6 +3029,8 @@
           estimatedDurationMinutes: host.estimatedDurationMinutes || null,
           distanceMeters: host.distanceMeters || null,
           fare,
+          pickupPin: hostPickupPin,
+          dropoffPin: hostDropoffPin,
           driverId: host.driverId || null,
           joinedExistingRideId: hostSnap.id
         };
