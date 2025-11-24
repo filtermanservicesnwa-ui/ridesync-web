@@ -461,6 +461,83 @@
         font-size: 0.75rem;
         color: #9ca3af;
       }
+      .eta-card {
+        border-radius: 18px;
+        border: 1px solid var(--rs-border);
+        background: rgba(2,6,23,0.7);
+        padding: 14px;
+        margin: 10px 0;
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .eta-card.active {
+        display: flex;
+      }
+      .eta-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .eta-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 999px;
+        border: 2px solid rgba(148,163,184,0.4);
+        overflow: hidden;
+        background: #020617;
+      }
+      .eta-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .eta-driver-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      .eta-driver-status {
+        font-size: 0.78rem;
+        color: #9ca3af;
+      }
+      .eta-driver-eta {
+        font-size: 0.82rem;
+        color: #bae6fd;
+      }
+      .eta-map {
+        width: 100%;
+        height: 160px;
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,0.2);
+        background: rgba(3,10,26,0.6);
+      }
+      .support-panel {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 12px;
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--rs-border);
+        background: rgba(3,10,26,0.78);
+      }
+      .support-panel.active {
+        display: flex;
+      }
+      .support-panel-text {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #e5e7eb;
+      }
+      .support-panel-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .support-panel button {
+        width: 100%;
+      }
       .completion-card {
         background: rgba(2,6,23,0.7);
         border: 1px solid var(--rs-border);
@@ -976,10 +1053,24 @@
         <div id="riderOverlayInfo"></div>
         <div id="riderOverlayStatus"></div>
 
+        <div id="driverEtaCard" class="eta-card" style="display:none;">
+          <div class="eta-card-header">
+            <div class="eta-avatar">
+              <img id="etaDriverAvatarImg" alt="Driver photo" loading="lazy" />
+            </div>
+            <div>
+              <div id="etaDriverName" class="eta-driver-name"></div>
+              <div id="etaDriverStatus" class="eta-driver-status"></div>
+              <div id="etaDriverEta" class="eta-driver-eta"></div>
+            </div>
+          </div>
+          <div id="etaMap" class="eta-map" role="presentation"></div>
+        </div>
+
             <div id="driverIdentityCard" class="driver-identity-card" style="display:none;">
               <div class="driver-identity-header">
                 <div id="driverIdentityAvatar" class="driver-identity-avatar">
-                  <img id="driverIdentityAvatarImg" alt="Driver avatar" />
+                  <img id="driverIdentityAvatarImg" alt="Driver avatar" loading="lazy" />
                   <span id="driverIdentityAvatarFallback" class="avatar-fallback">DR</span>
                 </div>
                 <div class="driver-identity-text">
@@ -992,7 +1083,7 @@
                 </div>
               </div>
               <div class="driver-vehicle-section">
-                <img id="driverVehiclePhoto" alt="Driver vehicle" />
+                <img id="driverVehiclePhoto" alt="Driver vehicle" loading="lazy" />
                 <div class="driver-vehicle-meta">
                   <div class="label">Vehicle</div>
                   <div class="vehicle-name" id="driverVehicleName"></div>
@@ -1000,7 +1091,7 @@
                 </div>
               </div>
               <div class="driver-license-section">
-                <img id="driverLicensePhoto" alt="Driver license" />
+                <img id="driverLicensePhoto" alt="Driver license" loading="lazy" />
                 <div class="driver-license-meta">
                   <div class="label">Driver License (verified)</div>
                   <div class="driver-license-text" id="driverLicenseText"></div>
@@ -1014,6 +1105,15 @@
         <button id="backToRideHomeButton" class="btn-secondary" type="button" style="margin-top:8px;">
           Back
         </button>
+
+        <div id="supportPanel" class="support-panel" aria-hidden="true">
+          <p class="support-panel-text">Call or text 479-422-1508 with any problems.</p>
+          <div class="support-panel-actions">
+            <button id="supportCallButton" class="btn-primary" type="button">Call support</button>
+            <button id="supportTextButton" class="btn-secondary" type="button">Text support</button>
+            <button id="supportBackButton" class="btn-ghost" type="button">Back</button>
+          </div>
+        </div>
 
         <div id="pickupPinSection" class="pin-section" style="display:none;">
           <div class="pin-label">Pickup PIN</div>
@@ -1136,6 +1236,7 @@
     const PIN_LENGTH = 4;
     const SUPPORT_PHONE_NUMBER = "479-422-1508";
     const SUPPORT_TEL_LINK = "tel:14794221508";
+    const SUPPORT_SMS_LINK = "sms:14794221508";
 
     const urlParams = new URLSearchParams(window.location.search);
     const joinRideIdFromUrl = urlParams.get("join");
@@ -1254,6 +1355,17 @@
         const driverVehiclePlate = document.getElementById("driverVehiclePlate");
         const driverLicensePhoto = document.getElementById("driverLicensePhoto");
         const driverLicenseText = document.getElementById("driverLicenseText");
+    const driverEtaCard = document.getElementById("driverEtaCard");
+    const etaDriverAvatarImg = document.getElementById("etaDriverAvatarImg");
+    const etaDriverName = document.getElementById("etaDriverName");
+    const etaDriverStatus = document.getElementById("etaDriverStatus");
+    const etaDriverEta = document.getElementById("etaDriverEta");
+    const etaMapEl = document.getElementById("etaMap");
+    const supportPanel = document.getElementById("supportPanel");
+    const supportPanelText = supportPanel ? supportPanel.querySelector(".support-panel-text") : null;
+    const supportCallButton = document.getElementById("supportCallButton");
+    const supportTextButton = document.getElementById("supportTextButton");
+    const supportBackButton = document.getElementById("supportBackButton");
     const closeRiderOverlayButton = document.getElementById("closeRiderOverlayButton");
 
     const riderMiniBar = document.getElementById("riderMiniBar");
@@ -1293,6 +1405,9 @@
     let map;
     let directionsService;
     let directionsRenderer;
+    let etaMap;
+    let etaDirectionsService;
+    let etaDirectionsRenderer;
     let pickupMarker;
     let destMarker;
     let currentLocation = null;
@@ -1320,6 +1435,18 @@
       return normalized ? normalized.padStart(PIN_LENGTH, "0") : "----";
     }
 
+    function formatPickupAddressFromProfile(profile) {
+      if (!profile) return null;
+      const street = profile.street || "";
+      const cityState = [profile.city, profile.state].filter(Boolean).join(", ");
+      const zip = profile.zip || "";
+      const parts = [street, cityState, zip].filter((part) => typeof part === "string" && part.trim());
+      if (parts.length) {
+        return parts.join(" • ");
+      }
+      return null;
+    }
+
       const riderCancelableStatuses = new Set([
         RIDE_STATUS.PENDING,
         RIDE_STATUS.ACCEPTED,
@@ -1342,6 +1469,8 @@
           activeGroupUnsub = null;
         }
         hideGroupQr();
+        resetEtaView();
+        closeSupportPanel();
       }
 
       function resetJoinModeUi() {
@@ -1388,6 +1517,8 @@
         hideGroupQr();
           renderDriverIdentity(null);
           hideRidePinSections();
+          resetEtaView();
+          closeSupportPanel();
         if (cancelError) cancelError.textContent = "";
           resetRideForm();
           resetCompletionUi();
@@ -2167,12 +2298,41 @@
           'data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20width%3D%2296%22%20height%3D%2260%22%20viewBox%3D%220%200%2096%2060%22%3E%3Crect%20width%3D%2296%22%20height%3D%2260%22%20rx%3D%2212%22%20fill%3D%22%23020617%22/%3E%3Crect%20x%3D%220%22%20y%3D%2212%22%20width%3D%2296%22%20height%3D%222%22%20fill%3D%22%230ea5e9%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2220%22%20width%3D%2226%22%20height%3D%2218%22%20rx%3D%224%22%20fill%3D%22%231e293b%22/%3E%3Crect%20x%3D%2246%22%20y%3D%2222%22%20width%3D%2236%22%20height%3D%224%22%20rx%3D%222%22%20fill%3D%22%233e4c68%22/%3E%3Crect%20x%3D%2246%22%20y%3D%2230%22%20width%3D%2232%22%20height%3D%224%22%20rx%3D%222%22%20fill%3D%22%233e4c68%22/%3E%3C/svg%3E'
       };
 
+      function attachImageFallback(img, fallbackSrc) {
+        if (!img || !fallbackSrc) return;
+        img.addEventListener("error", () => {
+          if (img.dataset.fallbackApplied === "true") return;
+          img.dataset.fallbackApplied = "true";
+          img.src = fallbackSrc;
+        });
+      }
+
+      attachImageFallback(driverIdentityAvatarImg, DRIVER_PLACEHOLDERS.avatar);
+      attachImageFallback(driverVehiclePhoto, DRIVER_PLACEHOLDERS.vehicle);
+      attachImageFallback(driverLicensePhoto, DRIVER_PLACEHOLDERS.license);
+      attachImageFallback(etaDriverAvatarImg, DRIVER_PLACEHOLDERS.avatar);
+
       function safeImageUrl(url, fallback) {
         if (!url) return fallback;
         try {
           return encodeURI(url);
         } catch (err) {
           return fallback;
+        }
+      }
+
+      function getFriendlyRideStatus(status) {
+        switch (status) {
+          case RIDE_STATUS.ACCEPTED:
+            return "Your driver is on the way.";
+          case RIDE_STATUS.ARRIVED_AT_PICKUP:
+            return "Your driver is waiting at pickup.";
+          case RIDE_STATUS.IN_PROGRESS:
+            return "Ride in progress.";
+          case RIDE_STATUS.ARRIVED_AT_DROPOFF:
+            return "Finishing ride.";
+          default:
+            return status || "Driver update";
         }
       }
 
@@ -2202,6 +2362,7 @@
             driverIdentityBadges.innerHTML = "";
             driverIdentityBadges.style.display = "none";
           }
+          resetEtaView();
           return;
         }
 
@@ -2231,7 +2392,7 @@
           driverIdentityRating.textContent = `★ ${ratingText}`;
         }
 
-        const avatarUrl = safeImageUrl(
+        const customAvatarUrl = safeImageUrl(
           data.driverAvatarUrl ||
             data.driverPhotoUrl ||
             data.driverProfilePicUrl ||
@@ -2239,17 +2400,13 @@
             data.driverAvatar,
           null
         );
+        const avatarUrl = customAvatarUrl || DRIVER_PLACEHOLDERS.avatar;
         if (driverIdentityAvatarImg) {
-          if (avatarUrl) {
-            driverIdentityAvatarImg.src = avatarUrl;
-            driverIdentityAvatarImg.style.display = "block";
-            if (driverIdentityAvatarFallback) driverIdentityAvatarFallback.style.display = "none";
-          } else {
-            driverIdentityAvatarImg.style.display = "none";
-            if (driverIdentityAvatarFallback) {
-              driverIdentityAvatarFallback.textContent = initials || "DR";
-              driverIdentityAvatarFallback.style.display = "flex";
-            }
+          driverIdentityAvatarImg.src = avatarUrl;
+          driverIdentityAvatarImg.style.display = "block";
+          if (driverIdentityAvatarFallback) {
+            driverIdentityAvatarFallback.textContent = initials || "DR";
+            driverIdentityAvatarFallback.style.display = "none";
           }
         }
 
@@ -2307,6 +2464,125 @@
         }
 
         driverIdentityCard.style.display = "flex";
+      }
+
+      function resetEtaView() {
+        if (driverEtaCard) {
+          driverEtaCard.style.display = "none";
+          driverEtaCard.classList.remove("active");
+        }
+        if (etaDriverName) etaDriverName.textContent = "";
+        if (etaDriverStatus) etaDriverStatus.textContent = "";
+        if (etaDriverEta) etaDriverEta.textContent = "";
+        if (etaMapEl) {
+          etaMapEl.style.display = "none";
+        }
+      }
+
+      function renderEtaMap(data) {
+        if (!etaMapEl) return;
+        const pickup = data?.fromLocation;
+        const destination = data?.toLocation;
+        if (
+          !pickup ||
+          typeof pickup.lat !== "number" ||
+          typeof pickup.lng !== "number" ||
+          !destination ||
+          typeof destination.lat !== "number" ||
+          typeof destination.lng !== "number"
+        ) {
+          etaMapEl.style.display = "none";
+          return;
+        }
+        if (!window.google || !google.maps) {
+          etaMapEl.style.display = "none";
+          return;
+        }
+        etaMapEl.style.display = "block";
+        if (!etaMap) {
+          etaMap = new google.maps.Map(etaMapEl, {
+            center: { lat: pickup.lat, lng: pickup.lng },
+            zoom: 13,
+            disableDefaultUI: true
+          });
+        }
+        if (!etaDirectionsService) {
+          etaDirectionsService = new google.maps.DirectionsService();
+        }
+        if (!etaDirectionsRenderer) {
+          etaDirectionsRenderer = new google.maps.DirectionsRenderer({
+            map: etaMap,
+            suppressMarkers: true,
+            preserveViewport: false,
+            polylineOptions: {
+              strokeColor: "#5de0a6",
+              strokeOpacity: 0.9,
+              strokeWeight: 4
+            }
+          });
+        } else {
+          etaDirectionsRenderer.setMap(etaMap);
+        }
+        etaDirectionsService.route(
+          {
+            origin: pickup,
+            destination,
+            travelMode: google.maps.TravelMode.DRIVING
+          },
+          (result, status) => {
+            if (status === "OK" && result) {
+              etaDirectionsRenderer.setDirections(result);
+              const bounds = new google.maps.LatLngBounds();
+              bounds.extend(pickup);
+              bounds.extend(destination);
+              etaMap.fitBounds(bounds, 24);
+            }
+          }
+        );
+      }
+
+      function renderEtaCard(data, status) {
+        if (!driverEtaCard) return;
+        const hasDriver =
+          !!(data?.driverName || data?.driverFirstName || data?.driverLastName || data?.driverEmail);
+        if (!hasDriver) {
+          resetEtaView();
+          return;
+        }
+        const displayName =
+          data.driverName ||
+          [data.driverFirstName, data.driverLastName].filter(Boolean).join(" ").trim() ||
+          "Driver";
+        const avatarUrl = safeImageUrl(
+          data.driverAvatarUrl ||
+            data.driverPhotoUrl ||
+            data.driverProfilePicUrl ||
+            data.driverImageUrl ||
+            data.driverAvatar,
+          DRIVER_PLACEHOLDERS.avatar
+        );
+        if (etaDriverAvatarImg && avatarUrl) {
+          etaDriverAvatarImg.src = avatarUrl;
+        }
+        if (etaDriverName) etaDriverName.textContent = displayName;
+        if (etaDriverStatus) etaDriverStatus.textContent = getFriendlyRideStatus(status);
+        const etaText = formatTripEstimate(data) || "We'll update your ETA soon.";
+        if (etaDriverEta) etaDriverEta.textContent = etaText;
+        driverEtaCard.style.display = "flex";
+        driverEtaCard.classList.add("active");
+        renderEtaMap(data);
+      }
+
+      function openSupportPanel() {
+        if (!supportPanel) return;
+        supportPanel.classList.add("active");
+        supportPanel.setAttribute("aria-hidden", "false");
+      }
+
+      function closeSupportPanel() {
+        if (!supportPanel) return;
+        supportPanel.classList.remove("active");
+        supportPanel.setAttribute("aria-hidden", "true");
       }
 
       function hideRidePinSections() {
@@ -2401,22 +2677,10 @@
         if (plate) infoLines.push(`Plate: ${plate}`);
         riderOverlayInfo.innerHTML = infoLines.join("<br/>");
 
-        const friendlyStatus = (() => {
-          switch (status) {
-            case RIDE_STATUS.ACCEPTED:
-              return "Your driver is on the way.";
-            case RIDE_STATUS.ARRIVED_AT_PICKUP:
-              return "Your driver is waiting at pickup.";
-            case RIDE_STATUS.IN_PROGRESS:
-              return "Your ride is in progress.";
-            case RIDE_STATUS.ARRIVED_AT_DROPOFF:
-              return "Confirming dropoff.";
-            default:
-              return status || "";
-          }
-        })();
+        const friendlyStatus = getFriendlyRideStatus(status);
         const tripEstimate = formatTripEstimate(data);
         riderOverlayStatus.textContent = [friendlyStatus, tripEstimate].filter(Boolean).join(" ").trim();
+        renderEtaCard(data, status);
         renderDriverIdentity(data);
 
         hideRidePinSections();
@@ -2634,13 +2898,36 @@
     if (closeRiderOverlayButton && riderOverlay) {
       closeRiderOverlayButton.addEventListener("click", () => {
         riderOverlay.classList.remove("active");
+        closeSupportPanel();
       });
     }
 
     if (contactDriverBtn) {
       contactDriverBtn.textContent = `Call or text ${SUPPORT_PHONE_NUMBER} with any problems`;
       contactDriverBtn.addEventListener("click", () => {
+        openSupportPanel();
+      });
+    }
+
+    if (supportPanelText) {
+      supportPanelText.textContent = `Call or text ${SUPPORT_PHONE_NUMBER} with any problems.`;
+    }
+
+    if (supportCallButton) {
+      supportCallButton.addEventListener("click", () => {
         window.location.href = SUPPORT_TEL_LINK;
+      });
+    }
+
+    if (supportTextButton) {
+      supportTextButton.addEventListener("click", () => {
+        window.location.href = SUPPORT_SMS_LINK;
+      });
+    }
+
+    if (supportBackButton) {
+      supportBackButton.addEventListener("click", () => {
+        closeSupportPanel();
       });
     }
 
@@ -2650,6 +2937,7 @@
         if (riderOverlay) {
           riderOverlay.classList.remove("active");
         }
+        closeSupportPanel();
       });
     }
 
@@ -2877,6 +3165,7 @@
 
       const riderPhone =
         currentUserProfile?.phone || currentUserProfile?.phoneNumber || "";
+      const pickupAddress = formatPickupAddressFromProfile(currentUserProfile);
 
       const maxRiders = numRiders;
       const isGroupRide = maxRiders > 1;
@@ -2907,6 +3196,7 @@
         toLocation: destinationLatLng
           ? { lat: destinationLatLng.lat(), lng: destinationLatLng.lng() }
           : null,
+        pickupAddress: pickupAddress || null,
         inHomeZone,
         estimatedDurationMinutes: lastRideMetrics.durationMinutes
           ? +lastRideMetrics.durationMinutes.toFixed(1)
@@ -3049,6 +3339,7 @@
           fromLocation: host.fromLocation || null,
           toDestination: host.toDestination || null,
           toLocation: host.toLocation || null,
+          pickupAddress: host.pickupAddress || formatPickupAddressFromProfile(currentUserProfile) || null,
           inHomeZone,
           estimatedDurationMinutes: host.estimatedDurationMinutes || null,
           distanceMeters: host.distanceMeters || null,
