@@ -13,11 +13,6 @@
 
   <!-- Google Maps -->
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDlYSl5rfovahECuBSbkELw2uyC6-Ucmr0"></script>
-  <!-- QR code library for boarding / dropoff codes -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <!-- QR scanner for pickup/dropoff verification -->
-  <script defer src="https://unpkg.com/html5-qrcode@2.3.9/html5-qrcode.min.js"></script>
-
     <style>
       :root {
         --rs-bg: #010817;
@@ -386,32 +381,50 @@
       margin: 4px 0;
       color: #bae6fd;
     }
-    .driver-qr-scanner {
+    .pin-card {
       border: 1px dashed rgba(148,163,184,0.5);
       border-radius: 18px;
       padding: 12px;
       margin: 10px 0;
       display: none;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
       background: rgba(2,6,23,0.7);
     }
-    .scan-actions {
+    .pin-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pin-entry-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #94a3b8;
+    }
+    .pin-entry-row {
       display: flex;
       gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin: 6px 0;
-    }
-    #driverQrScanner {
       width: 100%;
-      min-height: 240px;
-      border-radius: 12px;
-      background: rgba(15,23,42,0.6);
     }
-    .qr-scanner-status {
+    .pin-entry-row input {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.5);
+      background: rgba(2,6,23,0.8);
+      color: #f9fafb;
+      font-size: 1rem;
+      text-align: center;
+      letter-spacing: 0.2em;
+    }
+    .pin-entry-row button {
+      width: auto;
+    }
+    .pin-helper {
       font-size: 0.75rem;
       color: #fef3c7;
+      min-height: 18px;
       text-align: center;
     }
     .geo-status {
@@ -649,21 +662,37 @@
       <div class="ride-status-label" id="activeRideStatusLabel"></div>
       <div id="activeRideInstructions" class="small" style="margin-bottom:8px;"></div>
 
-      <div id="qrScanButtons" class="scan-actions" style="display:none;">
-        <button id="scanPickupButton" class="btn-secondary btn-small" type="button">
-          Scan pickup QR
-        </button>
-        <button id="scanDropoffButton" class="btn-secondary btn-small" type="button">
-          Scan dropoff QR
-        </button>
-      </div>
-
-      <div id="qrScannerContainer" class="driver-qr-scanner">
-        <div id="driverQrScanner"></div>
-        <div id="qrScannerStatus" class="qr-scanner-status"></div>
-        <button id="stopScannerButton" class="btn-ghost btn-small" type="button" style="align-self:center;">
-          Stop scanner
-        </button>
+      <div id="pinVerificationCard" class="pin-card" style="display:none;">
+        <div id="pickupPinEntry" class="pin-entry" style="display:none;">
+          <div class="pin-entry-title">Pickup PIN</div>
+          <div class="pin-entry-row">
+            <input
+              id="pickupPinInput"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="Enter PIN" />
+            <button id="pickupPinVerifyButton" class="btn-secondary btn-small" type="button">
+              Verify pickup
+            </button>
+          </div>
+          <div id="pickupPinMessage" class="pin-helper"></div>
+        </div>
+        <div id="dropoffPinEntry" class="pin-entry" style="display:none;">
+          <div class="pin-entry-title">Dropoff PIN</div>
+          <div class="pin-entry-row">
+            <input
+              id="dropoffPinInput"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="Enter PIN" />
+            <button id="dropoffPinVerifyButton" class="btn-secondary btn-small" type="button">
+              Verify dropoff
+            </button>
+          </div>
+          <div id="dropoffPinMessage" class="pin-helper"></div>
+        </div>
       </div>
 
       <div id="geofenceStatus" class="geo-status"></div>
@@ -755,10 +784,7 @@
       COMPLETED: "COMPLETED",
       CANCELLED: "CANCELLED"
     };
-    const QR_PAYLOAD = {
-      PICKUP_PREFIX: "pickup:",
-      DROPOFF_PREFIX: "dropoff:"
-    };
+    const PIN_LENGTH = 4;
     const DROPOFF_GEOFENCE_MILES = 0.1;
     const STATUS_TIMESTAMP_FIELDS = {
       [RIDE_STATUS.ACCEPTED]: "acceptedAt",
@@ -866,13 +892,15 @@
     const driverCancelButton = document.getElementById("driverCancelButton");
     const activeRideStatusLabel = document.getElementById("activeRideStatusLabel");
     const activeRideInstructions = document.getElementById("activeRideInstructions");
-    const qrScannerContainer = document.getElementById("qrScannerContainer");
-    const driverQrScannerEl = document.getElementById("driverQrScanner");
-    const qrScannerStatus = document.getElementById("qrScannerStatus");
-    const scanPickupButton = document.getElementById("scanPickupButton");
-    const scanDropoffButton = document.getElementById("scanDropoffButton");
-    const qrScanButtons = document.getElementById("qrScanButtons");
-    const stopScannerButton = document.getElementById("stopScannerButton");
+    const pinVerificationCard = document.getElementById("pinVerificationCard");
+    const pickupPinEntry = document.getElementById("pickupPinEntry");
+    const pickupPinInput = document.getElementById("pickupPinInput");
+    const pickupPinVerifyButton = document.getElementById("pickupPinVerifyButton");
+    const pickupPinMessage = document.getElementById("pickupPinMessage");
+    const dropoffPinEntry = document.getElementById("dropoffPinEntry");
+    const dropoffPinInput = document.getElementById("dropoffPinInput");
+    const dropoffPinVerifyButton = document.getElementById("dropoffPinVerifyButton");
+    const dropoffPinMessage = document.getElementById("dropoffPinMessage");
     const geofenceStatusEl = document.getElementById("geofenceStatus");
     const driverCancelModal = document.getElementById("driverCancelModal");
     const driverCancelReasonInput = document.getElementById("driverCancelReasonInput");
@@ -900,9 +928,6 @@
     let activeRideStatus = null;
     let activeRideCheckInVerified = false;
     let activeRideDestination = null;
-    let qrScanner = null;
-    let qrScannerActive = false;
-    let qrScannerStage = null;
     let canCompleteTrip = false;
 
       function getDriverDisplayName(profile, fallbackEmail = "") {
@@ -1129,7 +1154,7 @@
           ridesUnsub();
           ridesUnsub = null;
         }
-            stopQrScanner();
+            clearPinEntries();
             resetActiveRideRoute();
             activeRideOverlay.classList.remove("active");
             activeRideDocUnsubs.forEach((fn) => fn());
@@ -1611,7 +1636,7 @@
       if (!activeRideGroup.length) return;
       activeRideOverlay.classList.add("active");
       activeRideError.textContent = "";
-      stopQrScanner();
+      clearPinEntries();
       renderPickupMarkers();
       refreshActiveRideUi();
     }
@@ -1929,20 +1954,126 @@
         .join("<br/>");
     }
 
-    function updateScanButtons() {
-      if (!scanPickupButton || !scanDropoffButton || !qrScanButtons) return;
+    function normalizeStoredPin(pin) {
+      if (pin === null || pin === undefined) return "";
+      return String(pin).trim();
+    }
+
+    function sanitizePinInput(value) {
+      if (!value) return "";
+      return value.replace(/\D/g, "");
+    }
+
+    function setPinMessage(stage, message = "", variant = "info") {
+      const el = stage === "pickup" ? pickupPinMessage : dropoffPinMessage;
+      if (!el) return;
+      const colors = {
+        success: "#bbf7d0",
+        error: "#fecaca",
+        info: "#fef3c7"
+      };
+      el.style.color = colors[variant] || colors.info;
+      el.textContent = message;
+    }
+
+    function resetPinMessages() {
+      setPinMessage("pickup", "", "info");
+      setPinMessage("dropoff", "", "info");
+    }
+
+    function clearPinEntries() {
+      if (pickupPinInput) pickupPinInput.value = "";
+      if (dropoffPinInput) dropoffPinInput.value = "";
+      resetPinMessages();
+      if (pickupPinEntry) pickupPinEntry.style.display = "none";
+      if (dropoffPinEntry) dropoffPinEntry.style.display = "none";
+      if (pinVerificationCard) pinVerificationCard.style.display = "none";
+    }
+
+    function updatePinEntryVisibility() {
+      if (!pinVerificationCard) return;
       const showPickup =
         activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP && !activeRideCheckInVerified;
       const showDropoff = activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF;
-      if (showPickup || showDropoff) {
-        qrScanButtons.style.display = "flex";
-      } else {
-        qrScanButtons.style.display = "none";
+
+      if (pickupPinEntry) pickupPinEntry.style.display = showPickup ? "flex" : "none";
+      if (!showPickup) {
+        if (pickupPinInput) pickupPinInput.value = "";
+        setPinMessage("pickup", "", "info");
       }
-      scanPickupButton.style.display = showPickup ? "inline-flex" : "none";
-      scanDropoffButton.style.display = showDropoff ? "inline-flex" : "none";
-      scanPickupButton.disabled = qrScannerActive && qrScannerStage === "pickup";
-      scanDropoffButton.disabled = qrScannerActive && qrScannerStage === "dropoff";
+
+      if (dropoffPinEntry) dropoffPinEntry.style.display = showDropoff ? "flex" : "none";
+      if (!showDropoff) {
+        if (dropoffPinInput) dropoffPinInput.value = "";
+        setPinMessage("dropoff", "", "info");
+      }
+
+      const shouldShowCard = showPickup || showDropoff;
+      pinVerificationCard.style.display = shouldShowCard ? "flex" : "none";
+    }
+
+    function findRideMatchingPin(field, pinValue) {
+      if (!pinValue) return null;
+      return activeRideGroup.find(
+        (ride) => normalizeStoredPin(ride?.[field]) === pinValue
+      );
+    }
+
+    async function handlePickupPinVerification() {
+      if (activeRideStatus !== RIDE_STATUS.ARRIVED_AT_PICKUP) {
+        setPinMessage("pickup", "Tap Mark arrived before verifying.", "error");
+        return;
+      }
+      const value = sanitizePinInput(pickupPinInput?.value || "");
+      if (value.length !== PIN_LENGTH) {
+        setPinMessage("pickup", `Enter the ${PIN_LENGTH}-digit PIN.`, "error");
+        return;
+      }
+      const match = findRideMatchingPin("pickupPin", value);
+      if (!match) {
+        setPinMessage("pickup", "PIN does not match. Confirm with the rider.", "error");
+        return;
+      }
+      try {
+        await updateActiveRideFields({
+          checkInVerified: true,
+          checkInVerifiedAt: serverTimestamp()
+        });
+        setPinMessage("pickup", "Pickup confirmed.", "success");
+        activeRideCheckInVerified = true;
+        updatePinEntryVisibility();
+      } catch (err) {
+        console.error("verifyPickupPin error", err);
+        setPinMessage("pickup", err.message || "Unable to verify PIN.", "error");
+      }
+    }
+
+    async function handleDropoffPinVerification() {
+      if (activeRideStatus !== RIDE_STATUS.ARRIVED_AT_DROPOFF) {
+        setPinMessage("dropoff", "Arrive at the dropoff zone before verifying.", "error");
+        return;
+      }
+      const value = sanitizePinInput(dropoffPinInput?.value || "");
+      if (value.length !== PIN_LENGTH) {
+        setPinMessage("dropoff", `Enter the ${PIN_LENGTH}-digit PIN.`, "error");
+        return;
+      }
+      const match = findRideMatchingPin("dropoffPin", value);
+      if (!match) {
+        setPinMessage("dropoff", "PIN does not match. Confirm with the rider.", "error");
+        return;
+      }
+      try {
+        await updateActiveRideStatus(RIDE_STATUS.COMPLETED, {
+          checkOutVerified: true,
+          checkOutVerifiedAt: serverTimestamp()
+        });
+        setPinMessage("dropoff", "Dropoff confirmed.", "success");
+        finishActiveRide("Trip completed!");
+      } catch (err) {
+        console.error("verifyDropoffPin error", err);
+        setPinMessage("dropoff", err.message || "Unable to verify PIN.", "error");
+      }
     }
 
     function refreshActiveRideUi() {
@@ -1969,9 +2100,9 @@
           [RIDE_STATUS.ACCEPTED]: 'Navigate to pickup. Tap "Mark arrived" when you reach the rider.',
           [RIDE_STATUS.ARRIVED_AT_PICKUP]: activeRideCheckInVerified
             ? "Pickup confirmed. Start the trip when everyone is on board."
-            : "Tap Scan pickup QR to verify the rider before starting the trip.",
+            : `Ask for the ${PIN_LENGTH}-digit pickup PIN before starting the trip.`,
           [RIDE_STATUS.IN_PROGRESS]: "Drive to the destination. Complete trip once you're at the dropoff zone.",
-          [RIDE_STATUS.ARRIVED_AT_DROPOFF]: "Tap Scan dropoff QR to finish the trip.",
+          [RIDE_STATUS.ARRIVED_AT_DROPOFF]: `Enter the rider's dropoff PIN to finish the trip.`,
           [RIDE_STATUS.COMPLETED]: "Trip completed.",
           [RIDE_STATUS.CANCELLED]: "Trip cancelled."
         }[activeRideStatus] || "";
@@ -1993,13 +2124,7 @@
           ? "none"
           : "block";
 
-      const scannerNeeded =
-        (activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP && !activeRideCheckInVerified) ||
-        activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF;
-      if (!scannerNeeded && qrScannerActive) {
-        stopQrScanner();
-      }
-      updateScanButtons();
+      updatePinEntryVisibility();
 
       if (
         activeRideStatus !== RIDE_STATUS.IN_PROGRESS &&
@@ -2052,155 +2177,9 @@
       }
     }
 
-    async function ensureQrScannerReady() {
-      if (qrScanner) return qrScanner;
-      if (!window.Html5Qrcode || !driverQrScannerEl) {
-        activeRideError.textContent = "QR scanner unavailable on this device.";
-        return null;
-      }
-      qrScanner = new Html5Qrcode(driverQrScannerEl.id);
-      return qrScanner;
-    }
-
-    async function getPreferredCameraId() {
-      if (!window.Html5Qrcode || typeof Html5Qrcode.getCameras !== "function") {
-        return null;
-      }
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (!Array.isArray(cameras) || !cameras.length) {
-          return null;
-        }
-        const rearCamera =
-          cameras.find((cam) => /back|rear|environment/i.test(cam.label)) || cameras[0];
-        return rearCamera.id;
-      } catch (err) {
-        console.warn("Camera lookup failed", err);
-        return null;
-      }
-    }
-
-    async function startQrScanner(stage) {
-      if (stage !== "pickup" && stage !== "dropoff") return;
-      const isPickupStage = stage === "pickup";
-      const stageAllowed = isPickupStage
-        ? activeRideStatus === RIDE_STATUS.ARRIVED_AT_PICKUP && !activeRideCheckInVerified
-        : activeRideStatus === RIDE_STATUS.ARRIVED_AT_DROPOFF;
-      if (!stageAllowed) {
-        activeRideError.textContent = isPickupStage
-          ? "Tap Mark arrived first, then scan the pickup QR."
-          : "Arrive at the dropoff zone before scanning.";
-        return;
-      }
-      const scanner = await ensureQrScannerReady();
-      if (!scanner) return;
-      const rideId = getPrimaryRideId();
-      if (!rideId) return;
-      if (qrScannerActive) {
-        await stopQrScanner();
-      }
-      qrScannerStage = stage;
-      qrScannerStatus.textContent = "Align the rider's QR within the frame.";
-      qrScannerContainer.style.display = "flex";
-      const scanConfig = { fps: 10, qrbox: { width: 260, height: 260 } };
-      const onScan = (decodedText) => {
-        const expected =
-          stage === "pickup"
-            ? `${QR_PAYLOAD.PICKUP_PREFIX}${rideId}`
-            : `${QR_PAYLOAD.DROPOFF_PREFIX}${rideId}`;
-        if (decodedText === expected) {
-          stopQrScanner();
-          if (stage === "pickup") {
-            handlePickupCheckInSuccess();
-          } else {
-            handleDropoffScanSuccess();
-          }
-        } else {
-          qrScannerStatus.textContent =
-            "QR mismatch. Ask the rider to open their RideSync code.";
-        }
-      };
-
-      const friendlyError = (err) => {
-        console.error("QR scanner error", err);
-        if (/NotAllowedError/i.test(err?.name || err?.message || "")) {
-          qrScannerStatus.textContent =
-            "Camera permission blocked. Enable camera access in Safari/Chrome and try again.";
-        } else if (/NotFoundError/i.test(err?.name || err?.message || "")) {
-          qrScannerStatus.textContent = "No camera found on this device.";
-        } else {
-          qrScannerStatus.textContent =
-            "Unable to start scanner. Allow camera access and try again.";
-        }
-      };
-
-      const tryStart = async () => {
-        const cameraId = await getPreferredCameraId();
-        try {
-          if (cameraId) {
-            await scanner.start(cameraId, scanConfig, onScan);
-          } else {
-            await scanner.start({ facingMode: { exact: "environment" } }, scanConfig, onScan);
-          }
-          qrScannerActive = true;
-          updateScanButtons();
-        } catch (err) {
-          if (!cameraId) {
-            try {
-              await scanner.start({ facingMode: "environment" }, scanConfig, onScan);
-              qrScannerActive = true;
-              updateScanButtons();
-              return;
-            } catch (fallbackErr) {
-              friendlyError(fallbackErr);
-              return;
-            }
-          } else {
-            friendlyError(err);
-          }
-        }
-      };
-
-      await tryStart();
-    }
-
-    async function stopQrScanner() {
-      if (qrScanner && qrScannerActive) {
-        try {
-          await qrScanner.stop();
-        } catch (err) {
-          console.warn("Error stopping scanner", err);
-        }
-      }
-      qrScannerActive = false;
-      qrScannerStage = null;
-      qrScannerStatus.textContent = "";
-      if (qrScannerContainer) {
-        qrScannerContainer.style.display = "none";
-      }
-      updateScanButtons();
-    }
-
-    async function handlePickupCheckInSuccess() {
-      await updateActiveRideFields({
-        checkInVerified: true,
-        checkInVerifiedAt: serverTimestamp()
-      });
-      activeRideCheckInVerified = true;
-      stopQrScanner();
-    }
-
-    async function handleDropoffScanSuccess() {
-      await updateActiveRideStatus(RIDE_STATUS.COMPLETED, {
-        checkOutVerified: true,
-        checkOutVerifiedAt: serverTimestamp()
-      });
-      stopQrScanner();
-      finishActiveRide("Trip completed!");
-    }
 
     function finishActiveRide(message = "") {
-      stopQrScanner();
+      clearPinEntries();
       resetActiveRideRoute();
       activeRideOverlay.classList.remove("active");
       if (driverCancelModal) driverCancelModal.style.display = "none";
@@ -2248,11 +2227,11 @@
     startTripButton.addEventListener("click", async () => {
       if (activeRideStatus !== RIDE_STATUS.ARRIVED_AT_PICKUP) return;
       if (!activeRideCheckInVerified) {
-        activeRideError.textContent = "Scan the rider's pickup QR before starting the trip.";
+        activeRideError.textContent = `Verify the rider's ${PIN_LENGTH}-digit pickup PIN before starting the trip.`;
         return;
       }
       await updateActiveRideStatus(RIDE_STATUS.IN_PROGRESS);
-      stopQrScanner();
+      clearPinEntries();
       const destination = activeRideDestination || getPrimaryDestinationLatLng();
       if (destination) {
         launchNavigationTo(destination);
@@ -2295,27 +2274,37 @@
       });
     }
 
-    if (scanPickupButton) {
-      scanPickupButton.addEventListener("click", () => {
-        startQrScanner("pickup");
+    if (pickupPinVerifyButton) {
+      pickupPinVerifyButton.addEventListener("click", () => {
+        handlePickupPinVerification();
       });
     }
 
-    if (scanDropoffButton) {
-      scanDropoffButton.addEventListener("click", () => {
-        startQrScanner("dropoff");
+    if (dropoffPinVerifyButton) {
+      dropoffPinVerifyButton.addEventListener("click", () => {
+        handleDropoffPinVerification();
       });
     }
 
-    if (stopScannerButton) {
-      stopScannerButton.addEventListener("click", () => {
-        stopQrScanner();
+    if (pickupPinInput) {
+      pickupPinInput.addEventListener("keyup", (evt) => {
+        if (evt.key === "Enter") {
+          handlePickupPinVerification();
+        }
+      });
+    }
+
+    if (dropoffPinInput) {
+      dropoffPinInput.addEventListener("keyup", (evt) => {
+        if (evt.key === "Enter") {
+          handleDropoffPinVerification();
+        }
       });
     }
 
       closeActiveRideButton.addEventListener("click", () => {
         activeRideOverlay.classList.remove("active");
-        stopQrScanner();
+        clearPinEntries();
         resetActiveRideRoute();
       });
 
