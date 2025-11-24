@@ -427,6 +427,75 @@
       min-height: 18px;
       text-align: center;
     }
+    .support-panel {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--rs-border);
+      background: rgba(3,10,26,0.78);
+    }
+    .support-panel.active {
+      display: flex;
+    }
+    .support-panel-text {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+    }
+    .support-panel-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .support-panel button {
+      width: 100%;
+    }
+    .driver-rider-card {
+      border: 1px solid var(--rs-border);
+      border-radius: 16px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: rgba(3,10,26,0.65);
+    }
+    .driver-rider-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .driver-rider-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.4);
+      background: #020617;
+    }
+    .driver-rider-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .driver-rider-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .driver-rider-meta {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .driver-rider-detail {
+      font-size: 0.78rem;
+      color: #e5e7eb;
+      margin-bottom: 3px;
+    }
+    .driver-rider-detail strong {
+      color: #bae6fd;
+    }
     .geo-status {
       font-size: 0.78rem;
       color: #fcd34d;
@@ -710,6 +779,18 @@
         <button id="driverCancelButton" class="btn-danger">
           Cancel ride
         </button>
+        <button id="driverSupportButton" class="btn-secondary">
+          Call or text support
+        </button>
+      </div>
+
+      <div id="driverSupportPanel" class="support-panel" aria-hidden="true">
+        <p class="support-panel-text">Call or text 479-422-1508 with any problems.</p>
+        <div class="support-panel-actions">
+          <button id="driverSupportCallButton" class="btn-primary" type="button">Call support</button>
+          <button id="driverSupportTextButton" class="btn-secondary" type="button">Text support</button>
+          <button id="driverSupportBackButton" class="btn-ghost" type="button">Back</button>
+        </div>
       </div>
 
       <div id="activeRideError" class="error"></div>
@@ -786,6 +867,9 @@
     };
     const PIN_LENGTH = 4;
     const DROPOFF_GEOFENCE_MILES = 0.1;
+    const SUPPORT_PHONE_NUMBER = "479-422-1508";
+    const SUPPORT_TEL_LINK = "tel:14794221508";
+    const SUPPORT_SMS_LINK = "sms:14794221508";
     const STATUS_TIMESTAMP_FIELDS = {
       [RIDE_STATUS.ACCEPTED]: "acceptedAt",
       [RIDE_STATUS.ARRIVED_AT_PICKUP]: "arrivedAtPickupAt",
@@ -866,6 +950,18 @@
         ]
       };
 
+      const RIDER_PLACEHOLDER_AVATAR =
+        'data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2216%22%20fill%3D%22%23020617%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2224%22%20r%3D%2212%22%20fill%3D%22%236b7280%22/%3E%3Cpath%20d%3D%22M12%2054c0-8.84%208.06-16%2020-16s20%207.16%2020%2016%22%20fill%3D%22%231e293b%22/%3E%3C/svg%3E';
+
+      function safeImageUrl(url, fallback) {
+        if (!url) return fallback;
+        try {
+          return encodeURI(url);
+        } catch (err) {
+          return fallback;
+        }
+      }
+
       function getFirstProfileValue(profile, fieldList = []) {
         if (!profile || !Array.isArray(fieldList)) return null;
         for (const field of fieldList) {
@@ -907,6 +1003,11 @@
     const driverCancelConfirm = document.getElementById("driverCancelConfirm");
     const driverCancelDismiss = document.getElementById("driverCancelDismiss");
     const driverCancelError = document.getElementById("driverCancelError");
+    const driverSupportButton = document.getElementById("driverSupportButton");
+    const driverSupportPanel = document.getElementById("driverSupportPanel");
+    const driverSupportCallButton = document.getElementById("driverSupportCallButton");
+    const driverSupportTextButton = document.getElementById("driverSupportTextButton");
+    const driverSupportBackButton = document.getElementById("driverSupportBackButton");
 
     let currentUser = null;
     let currentDriverProfile = null;
@@ -1928,30 +2029,66 @@
         .join(" ");
     }
 
+    function formatPickupAddressForDriver(ride) {
+      if (ride?.pickupAddress) {
+        return ride.pickupAddress;
+      }
+      const fromLoc = ride?.fromLocation;
+      if (fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number") {
+        return `GPS pin: ${fromLoc.lat.toFixed(4)}, ${fromLoc.lng.toFixed(4)}`;
+      }
+      return "Pickup shared via RideSync.";
+    }
+
+    function formatDropoffAddressForDriver(ride) {
+      return ride?.toDestination || ride?.toAddress || "Destination shared via RideSync.";
+    }
+
+    function formatRiderMembershipLabel(membershipType) {
+      if (membershipType === "uofa_unlimited") return "U of A Unlimited";
+      if (membershipType === "nwa_unlimited") return "NWA Unlimited";
+      if (membershipType === "basic") return "Basic";
+      if (!membershipType) return "Membership pending";
+      return membershipType;
+    }
+
+    function buildDriverRiderCard(ride, idx) {
+      const name = ride.riderName || `Rider ${idx + 1}`;
+      const avatarUrl = safeImageUrl(
+        ride.riderProfilePicUrl ||
+          ride.riderPhotoUrl ||
+          ride.riderAvatarUrl ||
+          ride.riderImageUrl,
+        RIDER_PLACEHOLDER_AVATAR
+      );
+      const membership = formatRiderMembershipLabel(ride.membershipType || ride.membership);
+      const phone = ride.riderPhone || "";
+      const pickup = formatPickupAddressForDriver(ride);
+      const destination = formatDropoffAddressForDriver(ride);
+      const notes = ride.riderNotes || ride.groupNotes || "";
+      const membershipLine = `Membership: ${membership}`;
+      const phoneMeta = phone ? ` • ${phone}` : "";
+      return `
+        <div class="driver-rider-card">
+          <div class="driver-rider-header">
+            <div class="driver-rider-avatar">
+              <img src="${avatarUrl}" alt="${name} avatar" loading="lazy" />
+            </div>
+            <div>
+              <div class="driver-rider-name">${name}</div>
+              <div class="driver-rider-meta">${membershipLine}${phoneMeta}</div>
+            </div>
+          </div>
+          <div class="driver-rider-detail"><strong>Pickup:</strong> ${pickup}</div>
+          <div class="driver-rider-detail"><strong>Destination:</strong> ${destination}</div>
+          ${notes ? `<div class="driver-rider-detail">${notes}</div>` : ""}
+        </div>
+      `;
+    }
+
     function buildActiveRideInfo() {
       if (!activeRideGroup.length) return "";
-      return activeRideGroup
-        .map((r, idx) => {
-          const name = r.riderName || `Rider ${idx + 1}`;
-          const phone = r.riderPhone || "";
-          const membership = r.membershipType || r.membership || "Unknown";
-          const gender = r.gender || "";
-          const fromLoc = r.fromLocation;
-          const pickupStr =
-            fromLoc && typeof fromLoc.lat === "number" && typeof fromLoc.lng === "number"
-              ? `Pickup: ${fromLoc.lat.toFixed(4)}, ${fromLoc.lng.toFixed(4)}`
-              : "";
-          return [
-            `<strong>${name}</strong>`,
-            phone ? `Phone: ${phone}` : "",
-            `Membership: ${membership}`,
-            gender ? `Gender: ${gender}` : "",
-            pickupStr
-          ]
-            .filter(Boolean)
-            .join(" • ");
-        })
-        .join("<br/>");
+      return activeRideGroup.map((ride, idx) => buildDriverRiderCard(ride, idx)).join("");
     }
 
     function normalizeStoredPin(pin) {
@@ -2177,6 +2314,18 @@
       }
     }
 
+    function openDriverSupportPanel() {
+      if (!driverSupportPanel) return;
+      driverSupportPanel.classList.add("active");
+      driverSupportPanel.setAttribute("aria-hidden", "false");
+    }
+
+    function closeDriverSupportPanel() {
+      if (!driverSupportPanel) return;
+      driverSupportPanel.classList.remove("active");
+      driverSupportPanel.setAttribute("aria-hidden", "true");
+    }
+
 
     function finishActiveRide(message = "") {
       clearPinEntries();
@@ -2192,6 +2341,7 @@
       canCompleteTrip = false;
       if (geofenceStatusEl) geofenceStatusEl.textContent = "";
       if (driverMessage) driverMessage.textContent = message;
+      closeDriverSupportPanel();
     }
 
     async function cancelActiveRideAsDriver(reason) {
@@ -2302,10 +2452,43 @@
       });
     }
 
+    if (driverSupportButton) {
+      driverSupportButton.textContent = `Call or text ${SUPPORT_PHONE_NUMBER}`;
+      driverSupportButton.addEventListener("click", () => {
+        openDriverSupportPanel();
+      });
+    }
+
+    if (driverSupportPanel) {
+      const supportPanelTextEl = driverSupportPanel.querySelector(".support-panel-text");
+      if (supportPanelTextEl) {
+        supportPanelTextEl.textContent = `Call or text ${SUPPORT_PHONE_NUMBER} with any problems.`;
+      }
+    }
+
+    if (driverSupportCallButton) {
+      driverSupportCallButton.addEventListener("click", () => {
+        window.location.href = SUPPORT_TEL_LINK;
+      });
+    }
+
+    if (driverSupportTextButton) {
+      driverSupportTextButton.addEventListener("click", () => {
+        window.location.href = SUPPORT_SMS_LINK;
+      });
+    }
+
+    if (driverSupportBackButton) {
+      driverSupportBackButton.addEventListener("click", () => {
+        closeDriverSupportPanel();
+      });
+    }
+
       closeActiveRideButton.addEventListener("click", () => {
         activeRideOverlay.classList.remove("active");
         clearPinEntries();
         resetActiveRideRoute();
+        closeDriverSupportPanel();
       });
 
       const driverPwaToast = document.getElementById("pwaToast");
